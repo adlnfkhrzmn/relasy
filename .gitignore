@@ -39,6 +39,10 @@ next-env.d.ts
 /.cursor/
 /.vscode/
 /.idea/
+/anti-slop/
+/superpowers/
+/AGENTS.md
+/GEMINI.md
 
 # OS and editor noise
 .DS_Store
