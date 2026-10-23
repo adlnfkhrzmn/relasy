@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { firstIssueMessage } from "@/lib/utils";
 import { getCurrentSession } from "@/lib/auth/session";
 import { ensureDefaultAccount } from "@/lib/db/bootstrap";
 import {
   createCustomer,
+  getAllWorkspaceCustomers,
   getCustomers,
 } from "@/lib/db/repositories/customer.repo";
 
@@ -23,10 +25,14 @@ export async function GET(request: Request) {
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
     const { searchParams } = new URL(request.url);
+    const scope = searchParams.get("scope");
     const search = searchParams.get("search") || undefined;
     const filterArchived = searchParams.get("archived") === "true";
 
-    const customers = getCustomers(workspaceId, { search, filterArchived });
+    const customers =
+      scope === "all"
+        ? getAllWorkspaceCustomers(workspaceId)
+        : getCustomers(workspaceId, { search, filterArchived });
     return NextResponse.json({ success: true, data: customers });
   } catch (error) {
     console.error("GET /api/customers error:", error);
@@ -43,13 +49,13 @@ export async function POST(request: Request) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const body = await request.json();
+    // Body kosong atau JSON rusak harus dijawab 400, bukan 500.
+    const body = await request.json().catch(() => ({}));
     const parsed = createCustomerSchema.safeParse(body);
 
     if (!parsed.success) {
-      const issue = parsed.error.issues[0];
       return NextResponse.json(
-        { message: issue?.message || "Data pelanggan tidak valid." },
+        { message: firstIssueMessage(parsed.error.issues, "Data pelanggan tidak valid.") },
         { status: 400 }
       );
     }

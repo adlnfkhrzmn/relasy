@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <defs>
+    <linearGradient id="foldA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#252927" />
+      <stop offset="48%" stop-color="#433C9E" />
+      <stop offset="100%" stop-color="#6F716D" />
+    </linearGradient>
+    <linearGradient id="foldB" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#635BCE" />
+      <stop offset="50%" stop-color="#746DD6" />
+      <stop offset="100%" stop-color="#252927" />
+    </linearGradient>
+    <linearGradient id="foldC" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#252927" />
+      <stop offset="55%" stop-color="#6F716D" />
+      <stop offset="100%" stop-color="#A8AAA4" />
+    </linearGradient>
+    <linearGradient id="specular" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E9E8FC" stop-opacity="0.95" />
+      <stop offset="50%" stop-color="#635BCE" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#252927" stop-opacity="0.95" />
+    </linearGradient>
+  </defs>
+
+  <!-- Architectural interlocking ribbon sculpture in Ink & Relasy Indigo -->
+  <g transform="translate(800, 430)">
+    <!-- Outer architectural loop -->
+    <path
+      d="M -420,-40 C -420,-240 -160,-310 40,-160 C 240,-10 420,-220 420,-30 C 420,170 180,270 -30,120 C -240,-30 -420,160 -420,-40 Z"
+      fill="none"
+      stroke="url(#foldC)"
+      stroke-width="68"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <!-- Primary structural arch -->
+    <path
+      d="M -330,70 C -270,-190 -40,-260 110,-80 C 260,100 350,-90 300,-210"
+      fill="none"
+      stroke="url(#foldB)"
+      stroke-width="54"
+      stroke-linecap="round"
+    />
+
+    <!-- Counter-balanced inner fold -->
+    <path
+      d="M -270,-120 C -120,130 90,190 270,-40 C 350,-140 210,-270 40,-180 C -130,-90 -210,110 -40,210"
+      fill="none"
+      stroke="url(#specular)"
+      stroke-width="40"
+      stroke-linecap="round"
+    />
+
+    <!-- Core geometric node -->
+    <circle cx="0" cy="-25" r="56" fill="#252927" />
+    <circle cx="-14" cy="-38" r="20" fill="#635BCE" opacity="0.75" />
+  </g>
+</svg>

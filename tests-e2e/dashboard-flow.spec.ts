@@ -69,16 +69,22 @@ test.describe("Dashboard and Cross-Feature Workflows (Phase 7)", () => {
     // Verify activity appears in Riwayat Aktivitas Terkini section
     await expect(page.getByText(activityTitle).first()).toBeVisible();
 
-    // 7. Complete task directly from the dashboard
-    const completeBtn = page.getByRole("button", {
+    // 7. Complete task from the dashboard via explicit confirmation dialog
+    const completeCheckbox = page.getByRole("checkbox", {
       name: `Tandai selesai tugas ${followUpTitle}`,
     });
-    await expect(completeBtn).toBeVisible();
-    await completeBtn.click();
+    await expect(completeCheckbox).toBeVisible();
+    await completeCheckbox.click();
+
+    const confirmDialog = page.getByRole("dialog");
+    await expect(confirmDialog).toBeVisible();
+    await expect(page.getByText("Selesaikan Tugas Follow-up?")).toBeVisible();
+    await page.getByRole("button", { name: "Tandai Selesai" }).click();
+    await expect(confirmDialog).not.toBeVisible();
 
     // Verify success banner appears
     await expect(
-      page.getByText(`Tugas "${followUpTitle}" berhasil diselesaikan.`)
+      page.getByText(new RegExp(`Tugas "${followUpTitle}" ditandai selesai`, "i"))
     ).toBeVisible();
 
     // 8. Test card link navigation

@@ -1,0 +1,40 @@
+Relasy Demo License
+Copyright (c) 2026 Adlan Fakhruzzaman. All rights reserved.
+
+This repository is a DEMONSTRATION copy of the Relasy CRM application.
+
+1. PERMITTED USE
+
+You may:
+  a. Read, study, and evaluate the source code in this repository.
+  b. Clone and run this repository locally for personal evaluation.
+  c. Reference short excerpts for review, commentary, or educational purposes,
+     provided clear attribution to the original author is included.
+
+2. PROHIBITED USE
+
+You may NOT, without prior written permission from the copyright holder:
+  a. Use this code, in whole or in substantial part, in a commercial product
+     or in paid work for a client.
+  b. Redistribute, publish, sublicense, or sell this code or any derivative
+     of it.
+  c. Deploy this code as a publicly accessible product or service.
+  d. Remove or alter this license, the copyright notice, or the attribution
+     marks contained in the application.
+
+3. NO WARRANTY
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+4. COMMERCIAL LICENSE
+
+A separate commercial license grants the right to use, modify, rebrand, and
+deploy the full source code. Contact the copyright holder for terms:
+
+  https://github.com/adlnfkhrzmn

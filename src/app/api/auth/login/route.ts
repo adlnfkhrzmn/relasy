@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { firstIssueMessage } from "@/lib/utils";
 import { getUserByEmail } from "@/lib/db/repositories/user.repo";
 import { getWorkspaceById } from "@/lib/db/repositories/workspace.repo";
 import { verifyPassword } from "@/lib/auth/password";
@@ -16,12 +17,13 @@ export async function POST(request: Request) {
     // Ensure default demo account exists if database is fresh
     await ensureDefaultAccount();
 
-    const body = await request.json();
+    // Body kosong atau JSON rusak harus dijawab 400, bukan 500.
+    const body = await request.json().catch(() => ({}));
     const parsed = loginSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
-        { message: parsed.error.issues[0]?.message || "Input tidak valid." },
+        { message: firstIssueMessage(parsed.error.issues, "Input tidak valid.") },
         { status: 400 }
       );
     }

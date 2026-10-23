@@ -14,9 +14,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full space-y-1.5">
         {label && (
-          <label htmlFor={inputId} className="block text-sm font-medium text-slate-800">
+          <label htmlFor={inputId} className="block text-sm font-medium text-[#252927]">
             {label}
-            {required && <span className="text-red-600 ml-1" aria-hidden="true">*</span>}
           </label>
         )}
         <input
@@ -27,12 +26,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           aria-invalid={!!error}
           aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-desc` : undefined}
           className={cn(
-            "w-full rounded-md border bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:border-transparent",
-            "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
+            "w-full rounded-md border bg-[#FFFFFF] px-3 py-2 text-sm text-[#252927] placeholder:text-[#A8AAA4] transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BCE] focus-visible:border-transparent",
+            "disabled:cursor-not-allowed disabled:bg-[#F7F6F1] disabled:text-[#A8AAA4]",
             error
               ? "border-red-500 focus-visible:ring-red-500"
-              : "border-slate-300 hover:border-slate-400",
+              : "border-[#E5E4DE] hover:border-[#D5D4CD]",
             className
           )}
           {...props}
@@ -43,7 +42,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           </p>
         )}
         {!error && helperText && (
-          <p id={`${inputId}-desc`} className="text-xs text-slate-500">
+          <p id={`${inputId}-desc`} className="text-xs text-[#6F716D]">
             {helperText}
           </p>
         )}

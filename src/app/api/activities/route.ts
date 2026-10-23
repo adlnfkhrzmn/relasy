@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { firstIssueMessage } from "@/lib/utils";
 import { getCurrentSession } from "@/lib/auth/session";
 import { ensureDefaultAccount } from "@/lib/db/bootstrap";
 import { createActivity, getActivities } from "@/lib/db/repositories/activity.repo";
@@ -45,12 +46,13 @@ export async function POST(request: Request) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const body = await request.json();
+    // Body kosong atau JSON rusak harus dijawab 400, bukan 500.
+    const body = await request.json().catch(() => ({}));
     const parsed = createActivitySchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
-        { message: parsed.error.issues[0]?.message || "Data aktivitas tidak valid." },
+        { message: firstIssueMessage(parsed.error.issues, "Data aktivitas tidak valid.") },
         { status: 400 }
       );
     }

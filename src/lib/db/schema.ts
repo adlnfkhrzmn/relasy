@@ -99,4 +99,14 @@ CREATE TABLE IF NOT EXISTS followups (
 CREATE INDEX IF NOT EXISTS idx_followups_workspace_status ON followups(workspace_id, status);
 CREATE INDEX IF NOT EXISTS idx_followups_due ON followups(workspace_id, due_at);
 CREATE INDEX IF NOT EXISTS idx_followups_customer ON followups(customer_id);
+
+-- Follow-up Text Templates (per workspace configuration)
+CREATE TABLE IF NOT EXISTS followup_templates (
+  workspace_id TEXT PRIMARY KEY,
+  is_enabled INTEGER NOT NULL DEFAULT 1,
+  active_preset TEXT NOT NULL DEFAULT 'eksekutif_ramah',
+  template_text TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+);
 `;

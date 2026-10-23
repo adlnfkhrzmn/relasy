@@ -101,6 +101,13 @@ export function getCustomers(
   return (db.prepare(query).all(...params) as unknown) as CustomerRecord[];
 }
 
+export function getAllWorkspaceCustomers(workspaceId: string): CustomerRecord[] {
+  const db = getDatabase();
+  return (db
+    .prepare("SELECT * FROM customers WHERE workspace_id = ? ORDER BY created_at DESC")
+    .all(workspaceId) as unknown) as CustomerRecord[];
+}
+
 export function getCustomerById(workspaceId: string, customerId: string): CustomerRecord | null {
   const db = getDatabase();
   const row = (db

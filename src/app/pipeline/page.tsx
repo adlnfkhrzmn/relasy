@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,19 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LuxuryNotification } from "@/components/ui/luxury-toast";
 import {
-  Kanban,
-  List,
-  Plus,
-  Building,
-  Calendar,
-  AlertCircle,
-  ChevronRight,
-  ArrowRight,
-  MoreVertical,
-  CheckCircle2,
-  Trash2,
-} from "lucide-react";
+  MarkFunnel,
+  MarkList,
+  MarkPlus,
+  MarkTrash,
+  MarkChevronDown,
+} from "@/components/ui/marks";
 import Link from "next/link";
 import { PIPELINE_STAGES, PipelineStage } from "@/lib/constants";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -52,6 +48,8 @@ export default function PipelinePage() {
   const [errorFeedback, setErrorFeedback] = useState("");
   const [successFeedback, setSuccessFeedback] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [isDeletingOpp, setIsDeletingOpp] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -152,16 +150,27 @@ export default function PipelinePage() {
     }
   };
 
-  const handleDeleteOpportunity = async (opportunityId: string, title: string) => {
-    if (!confirm(`Hapus peluang "${title}"?`)) return;
+  const handleDeleteOpportunity = (opportunityId: string, title: string) => {
+    setDeleteTarget({ id: opportunityId, title });
+  };
+
+  const executeDeleteOpportunity = async () => {
+    if (!deleteTarget) return;
+    setIsDeletingOpp(true);
     try {
-      const res = await fetch(`/api/opportunities/${opportunityId}`, { method: "DELETE" });
+      const res = await fetch(`/api/opportunities/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error("Gagal menghapus peluang.");
-      setSuccessFeedback(`Peluang "${title}" berhasil dihapus.`);
+      const deletedTitle = deleteTarget.title;
+      setDeleteTarget(null);
+      setSuccessFeedback(`Peluang "${deletedTitle}" berhasil dihapus.`);
       fetchData();
       setTimeout(() => setSuccessFeedback(""), 3500);
     } catch (err: any) {
       setErrorFeedback(err.message);
+    } finally {
+      setIsDeletingOpp(false);
     }
   };
 
@@ -183,86 +192,111 @@ export default function PipelinePage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#252927] tracking-tight">
               Pipeline Penjualan
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-[#6F716D] mt-1">
               Pantau tahapan peluang penjualan mulai dari kontak awal hingga kesepakatan berhasil.
             </p>
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <div className="flex items-center bg-slate-100 p-1 rounded-md border border-slate-200/60">
+            <div className="flex items-center bg-[#FFFFFF] p-1 rounded-md border border-[#E5E4DE]">
               <button
                 type="button"
                 onClick={() => setViewMode("board")}
-                className={`p-1.5 rounded-sm text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`relative p-1.5 px-2.5 rounded-sm text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                   viewMode === "board"
-                    ? "bg-white text-slate-900 shadow-xs font-semibold"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "text-[#635BCE] font-semibold"
+                    : "text-[#6F716D] hover:text-[#252927]"
                 }`}
-                title="Tampilan Papan Kanban"
+                title="Tampilan Pipeline"
               >
-                <Kanban className="w-4 h-4" />
-                <span className="hidden sm:inline">Papan</span>
+                {viewMode === "board" && (
+                  <motion.span
+                    layoutId="pipeline-view-pill"
+                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute inset-0 rounded-sm bg-[#E9E8FC] border border-[#D5D3F5]"
+                  />
+                )}
+                <MarkFunnel className="w-4 h-4 relative z-10" />
+                <span className="hidden sm:inline relative z-10">Pipeline</span>
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode("list")}
-                className={`p-1.5 rounded-sm text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`relative p-1.5 px-2.5 rounded-sm text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                   viewMode === "list"
-                    ? "bg-white text-slate-900 shadow-xs font-semibold"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "text-[#635BCE] font-semibold"
+                    : "text-[#6F716D] hover:text-[#252927]"
                 }`}
                 title="Tampilan Tabel"
               >
-                <List className="w-4 h-4" />
-                <span className="hidden sm:inline">Tabel</span>
+                {viewMode === "list" && (
+                  <motion.span
+                    layoutId="pipeline-view-pill"
+                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute inset-0 rounded-sm bg-[#E9E8FC] border border-[#D5D3F5]"
+                  />
+                )}
+                <MarkList className="w-4 h-4 relative z-10" />
+                <span className="hidden sm:inline relative z-10">Tabel</span>
               </button>
             </div>
 
             <Button onClick={() => setIsAddDialogOpen(true)} size="sm" className="gap-1.5">
-              <Plus className="w-4 h-4" />
+              <MarkPlus className="w-4 h-4" />
               <span>Tambah peluang</span>
             </Button>
           </div>
         </div>
 
-        {/* Feedback Messages */}
+        {/* Luxury Feedback Messages */}
         {successFeedback && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm rounded-md flex items-center justify-between">
-            <span>{successFeedback}</span>
-            <button
-              type="button"
-              onClick={() => setSuccessFeedback("")}
-              className="text-emerald-700 font-bold ml-2 cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
+          <LuxuryNotification
+            variant="luxury"
+            title="Pembaruan Pipeline Penjualan"
+            message={successFeedback}
+            onClose={() => setSuccessFeedback("")}
+          />
         )}
 
         {errorFeedback && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm rounded-md flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-            <span>{errorFeedback}</span>
-          </div>
+          <LuxuryNotification
+            variant="error"
+            title="Perhatian Pipeline"
+            message={errorFeedback}
+            onClose={() => setErrorFeedback("")}
+          />
         )}
 
-        {/* Content */}
         {isLoading ? (
-          <div className="p-12 text-center text-xs text-slate-400 bg-white border border-slate-200 rounded-lg">
-            Memuat peluang penjualan...
+          <div
+            aria-busy="true"
+            aria-label="Memuat peluang penjualan"
+            className="p-6 bg-[#FFFFFF] border border-[#E5E4DE] rounded-lg space-y-3"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-32 rounded-md bg-[#F7F6F1] animate-pulse"
+                />
+              ))}
+            </div>
+            <p className="text-center text-xs text-[#A8AAA4] pt-1">
+              Memuat peluang penjualan...
+            </p>
           </div>
         ) : opportunities.length === 0 ? (
           <Card className="p-8">
             <EmptyState
-              icon={Kanban}
+              icon={MarkFunnel}
               title="Belum ada peluang penjualan"
               description="Buat peluang baru untuk memantau nilai transaksi dan tahapan negosiasi dengan pelanggan Anda."
               action={
                 <Button onClick={() => setIsAddDialogOpen(true)} size="sm" className="gap-1.5">
-                  <Plus className="w-4 h-4" />
+                  <MarkPlus className="w-4 h-4" />
                   <span>Tambah peluang baru</span>
                 </Button>
               }
@@ -274,17 +308,17 @@ export default function PipelinePage() {
             {stageStats.map((col) => (
               <div
                 key={col.id}
-                className="w-72 sm:w-80 shrink-0 bg-slate-100/90 rounded-lg border border-slate-200 flex flex-col max-h-[calc(100vh-220px)] snap-start shadow-xs"
+                className="w-72 sm:w-80 shrink-0 bg-[#EFECE6]/70 rounded-lg border border-[#E5E4DE] flex flex-col max-h-[calc(100vh-220px)] snap-start shadow-xs"
               >
                 {/* Column Header */}
-                <div className="p-3.5 border-b border-slate-200/80 flex items-center justify-between bg-white rounded-t-lg">
+                <div className="p-3.5 border-b border-[#E5E4DE] flex items-center justify-between bg-[#FFFFFF] rounded-t-lg">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-900">{col.label}</span>
-                    <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                    <span className="text-xs font-semibold text-[#252927]">{col.label}</span>
+                    <span className="text-[11px] font-bold text-[#635BCE] bg-[#E9E8FC] px-2 py-0.5 rounded-full border border-[#D5D3F5]">
                       {col.count}
                     </span>
                   </div>
-                  <span className="text-xs font-semibold text-slate-700">
+                  <span className="text-xs font-semibold text-[#6F716D]">
                     {formatCurrency(col.totalVal)}
                   </span>
                 </div>
@@ -292,66 +326,71 @@ export default function PipelinePage() {
                 {/* Column Cards Container */}
                 <div className="p-3 flex-1 overflow-y-auto space-y-3 min-h-[160px]">
                   {col.items.length === 0 ? (
-                    <div className="h-full flex items-center justify-center p-4 border border-dashed border-slate-200 rounded-md bg-white/40 text-center">
-                      <p className="text-xs text-slate-400">Belum ada peluang</p>
+                    <div className="h-full flex items-center justify-center p-4 border border-dashed border-[#E5E4DE] rounded-md bg-[#FFFFFF]/50 text-center">
+                      <p className="text-xs text-[#A8AAA4]">Belum ada peluang</p>
                     </div>
                   ) : (
                     col.items.map((opp) => (
                       <div
                         key={opp.id}
-                        className="p-3.5 bg-white rounded-md border border-slate-200 shadow-xs hover:border-slate-300 transition-all space-y-2.5"
+                        className="p-3.5 bg-[#FFFFFF] rounded-md border border-[#E5E4DE] shadow-xs hover:border-[#635BCE]/50 transition-all space-y-2.5"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-sm font-semibold text-slate-900 leading-snug">
+                          <h4 className="text-sm font-semibold text-[#252927] leading-snug">
                             {opp.title}
                           </h4>
                           <button
                             type="button"
                             onClick={() => handleDeleteOpportunity(opp.id, opp.title)}
-                            className="p-1 text-slate-400 hover:text-red-700 rounded transition-colors"
+                            className="p-1 text-[#A8AAA4] hover:text-red-700 rounded transition-colors"
                             title="Hapus peluang"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <MarkTrash className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
-                        <div className="text-xs text-slate-600">
+                        <div className="text-xs text-[#6F716D]">
                           <Link
                             href={`/pelanggan/${opp.customer_id}`}
-                            className="text-blue-700 hover:underline font-medium inline-flex items-center gap-1"
+                            className="text-[#635BCE] hover:underline font-medium inline-flex items-center gap-1"
                           >
                             <span>{opp.customer_name}</span>
                           </Link>
                         </div>
 
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
-                          <span className="font-bold text-slate-900">
+                        <div className="flex items-center justify-between pt-1 border-t border-[#E5E4DE] text-xs">
+                          <span className="font-bold text-[#252927]">
                             {formatCurrency(opp.estimated_value)}
                           </span>
                           {opp.expected_close_date && (
-                            <span className="text-[11px] text-slate-500">
+                            <span className="text-[11px] text-[#6F716D]">
                               {formatDate(opp.expected_close_date)}
                             </span>
                           )}
                         </div>
 
                         {/* Accessible Stage Transition Selector (R-32) */}
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                          <span className="text-[11px] text-slate-400">Pindah tahap:</span>
-                          <select
-                            value={opp.stage}
-                            onChange={(e) =>
-                              handleStageChange(opp.id, e.target.value as PipelineStage)
-                            }
-                            aria-label={`Ubah tahapan peluang ${opp.title}`}
-                            className="text-xs bg-slate-50 border border-slate-200 rounded px-2 py-1 text-slate-700 font-medium focus-visible:ring-1 focus-visible:ring-blue-600 cursor-pointer"
-                          >
-                            {PIPELINE_STAGES.map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.label}
-                              </option>
-                            ))}
-                          </select>
+                        <div className="pt-2 border-t border-[#E5E4DE] flex items-center justify-between gap-2 text-xs">
+                          <span className="text-[11px] text-[#6F716D] shrink-0">Pindah tahap</span>
+                          <div className="relative inline-flex items-center">
+                            <select
+                              value={opp.stage}
+                              onChange={(e) =>
+                                handleStageChange(opp.id, e.target.value as PipelineStage)
+                              }
+                              aria-label={`Ubah tahapan peluang ${opp.title}`}
+                              className="appearance-none text-xs bg-[#F7F6F1] border border-[#E5E4DE] hover:border-[#D5D4CD] rounded-md pl-2.5 pr-7 py-1.5 text-[#252927] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(37,41,39,0.06)] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BCE] focus-visible:border-transparent cursor-pointer"
+                            >
+                              {PIPELINE_STAGES.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.label}
+                                </option>
+                              ))}
+                            </select>
+                            <MarkChevronDown
+                              className="pointer-events-none absolute right-2 w-3 h-3 text-[#6F716D]"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))
@@ -362,8 +401,8 @@ export default function PipelinePage() {
           </div>
         ) : (
           /* Table View */
-          <Card className="overflow-hidden divide-y divide-slate-100">
-            <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-200/80">
+          <Card className="overflow-hidden divide-y divide-[#E5E4DE]">
+            <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-3 bg-[#F7F6F1] text-xs font-semibold text-[#6F716D] border-b border-[#E5E4DE]">
               <div className="col-span-4">Judul Peluang</div>
               <div className="col-span-3">Pelanggan</div>
               <div className="col-span-2">Tahapan</div>
@@ -374,12 +413,12 @@ export default function PipelinePage() {
             {opportunities.map((opp) => (
               <div
                 key={opp.id}
-                className="p-4 sm:px-5 sm:py-3.5 hover:bg-slate-50/80 transition-colors flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 items-start md:items-center"
+                className="p-4 sm:px-5 sm:py-3.5 hover:bg-[#F7F6F1] transition-colors flex flex-col md:grid md:grid-cols-12 gap-2 md:gap-4 items-start md:items-center"
               >
                 <div className="col-span-4">
-                  <p className="font-semibold text-sm text-slate-900">{opp.title}</p>
+                  <p className="font-semibold text-sm text-[#252927]">{opp.title}</p>
                   {opp.expected_close_date && (
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-[#6F716D] mt-0.5">
                       Target: {formatDate(opp.expected_close_date)}
                     </p>
                   )}
@@ -388,7 +427,7 @@ export default function PipelinePage() {
                 <div className="col-span-3 text-xs">
                   <Link
                     href={`/pelanggan/${opp.customer_id}`}
-                    className="text-blue-700 hover:underline font-medium"
+                    className="text-[#635BCE] hover:underline font-medium"
                   >
                     {opp.customer_name}
                   </Link>
@@ -400,7 +439,7 @@ export default function PipelinePage() {
                   </Badge>
                 </div>
 
-                <div className="col-span-2 md:text-right font-bold text-sm text-slate-900">
+                <div className="col-span-2 md:text-right font-bold text-sm text-[#252927]">
                   {formatCurrency(opp.estimated_value)}
                 </div>
 
@@ -408,10 +447,10 @@ export default function PipelinePage() {
                   <button
                     type="button"
                     onClick={() => handleDeleteOpportunity(opp.id, opp.title)}
-                    className="p-1.5 text-slate-400 hover:text-red-700 rounded transition-colors cursor-pointer"
+                    className="p-1.5 text-[#A8AAA4] hover:text-red-700 rounded transition-colors cursor-pointer"
                     title="Hapus peluang"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <MarkTrash className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -436,15 +475,15 @@ export default function PipelinePage() {
             />
 
             <div className="space-y-1.5">
-              <label htmlFor="opp-customer" className="block text-sm font-medium text-slate-800">
-                Pelanggan Terkait <span className="text-red-600">*</span>
+              <label htmlFor="opp-customer" className="block text-sm font-medium text-[#252927]">
+                Pelanggan Terkait
               </label>
               <select
                 id="opp-customer"
                 required
                 value={formData.customerId}
                 onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-                className="w-full rounded-md border border-slate-300 p-2.5 text-sm text-slate-900 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                className="w-full rounded-md border border-[#E5E4DE] p-2.5 text-sm text-[#252927] bg-[#FFFFFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BCE]"
               >
                 <option value="">-- Pilih pelanggan --</option>
                 {customers.map((c) => (
@@ -490,7 +529,7 @@ export default function PipelinePage() {
               onChange={(e) => setFormData({ ...formData, expectedCloseDate: e.target.value })}
             />
 
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E5E4DE]">
               <Button type="button" variant="outline" size="sm" onClick={() => setIsAddDialogOpen(false)}>
                 Batal
               </Button>
@@ -504,6 +543,40 @@ export default function PipelinePage() {
               </Button>
             </div>
           </form>
+        </Dialog>
+
+        <Dialog
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          title="Hapus Peluang Penjualan?"
+          description="Tindakan ini akan menghapus catatan peluang penjualan secara permanen dari pipeline."
+        >
+          {deleteTarget && (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-lg bg-[#F7F6F1] border border-[#E5E4DE] text-xs text-[#252927]">
+                Peluang: <strong className="font-semibold">{deleteTarget.title}</strong>
+              </div>
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E5E4DE]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeleteTarget(null)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  isLoading={isDeletingOpp}
+                  onClick={executeDeleteOpportunity}
+                >
+                  Hapus Peluang
+                </Button>
+              </div>
+            </div>
+          )}
         </Dialog>
       </div>
     </AppShell>

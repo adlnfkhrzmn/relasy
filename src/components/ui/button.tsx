@@ -21,18 +21,19 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center font-medium rounded-md transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 disabled:opacity-50 disabled:pointer-events-none cursor-pointer";
+      "inline-flex items-center justify-center font-medium rounded-md transition-all duration-150 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BCE] focus-visible:ring-offset-1 disabled:opacity-55 disabled:pointer-events-none cursor-pointer active:scale-[0.98]";
 
     const variantStyles = {
       primary:
-        "bg-blue-700 text-white hover:bg-blue-800 active:bg-blue-900 border border-transparent shadow-sm",
+        "bg-[#635BCE] text-white hover:bg-[#524AB8] active:bg-[#433C9E] dark:bg-[#635BCE] dark:text-white dark:hover:bg-[#746DD6] border border-transparent shadow-xs",
       secondary:
-        "bg-slate-100 text-slate-800 hover:bg-slate-200 active:bg-slate-300 border border-slate-200",
+        "bg-[#E9E8FC] text-[#252927] hover:bg-[#DDD9F9] active:bg-[#C5BFF3] dark:bg-[#252927] dark:text-[#F7F6F1] dark:hover:bg-[#2E3330] border border-[#D5D3F5] dark:border-[#3D433F]",
       outline:
-        "bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100 border border-slate-300 shadow-sm",
+        "bg-[#FFFFFF] text-[#252927] hover:bg-[#F7F6F1] active:bg-[#EFECE6] dark:bg-[#1C1F1D] dark:text-[#F7F6F1] dark:hover:bg-[#252927] border border-[#E5E4DE] dark:border-[#2E3330] shadow-xs",
       destructive:
-        "bg-red-700 text-white hover:bg-red-800 active:bg-red-900 border border-transparent shadow-sm",
-      ghost: "bg-transparent text-slate-700 hover:bg-slate-100 active:bg-slate-200",
+        "bg-red-700 text-white hover:bg-red-800 active:bg-red-900 dark:bg-red-600 dark:text-white dark:hover:bg-red-500 border border-transparent shadow-xs",
+      ghost:
+        "bg-transparent text-[#252927] hover:bg-[#E9E8FC]/60 active:bg-[#E9E8FC] dark:text-[#F7F6F1] dark:hover:bg-[#252927]",
     };
 
     const sizeStyles = {

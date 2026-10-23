@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, use } from "react";
+import { motion } from "framer-motion";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,24 +9,28 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dialog } from "@/components/ui/dialog";
+import { LuxuryNotification } from "@/components/ui/luxury-toast";
 import {
-  Users,
-  ArrowLeft,
-  Phone,
-  Mail,
-  Building,
-  Edit2,
-  Archive,
-  RotateCcw,
-  Trash2,
-  Clock,
-  Kanban,
-  CalendarCheck2,
-  Plus,
-  AlertCircle,
-  ExternalLink,
-  MessageSquare,
-} from "lucide-react";
+  DEFAULT_FOLLOWUP_TEMPLATE,
+  generateFollowupText,
+  buildManualWhatsAppHref,
+} from "@/lib/followup-template";
+import { PIPELINE_STAGES } from "@/lib/constants";
+import {
+  MarkArrowLeft,
+  MarkBuilding,
+  MarkEdit,
+  MarkArchive,
+  MarkRestore,
+  MarkTrash,
+  MarkClock,
+  MarkFunnel,
+  MarkSchedule,
+  MarkPlus,
+  MarkExternal,
+  MarkMessage,
+  MarkCheck,
+} from "@/components/ui/marks";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDate, formatCurrency } from "@/lib/utils";
@@ -45,8 +50,11 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorFeedback, setErrorFeedback] = useState("");
   const [successFeedback, setSuccessFeedback] = useState("");
+  const [templateConfig, setTemplateConfig] = useState({
+    is_enabled: true,
+    template_text: DEFAULT_FOLLOWUP_TEMPLATE,
+  });
 
-  // Edit dialog state
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -58,11 +66,9 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
     notes: "",
   });
 
-  // Delete dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Add activity dialog state
   const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
   const [isSubmittingActivity, setIsSubmittingActivity] = useState(false);
   const [activityForm, setActivityForm] = useState({
@@ -71,8 +77,35 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
     body: "",
   });
 
-  // Active tab
-  const [activeTab, setActiveTab] = useState<"activities" | "opportunities" | "followups">("activities");
+  const [activeTab, setActiveTab] = useState<"activities" | "opportunities" | "followups">(
+    "activities"
+  );
+  const [confirmCompleteFollowup, setConfirmCompleteFollowup] = useState<any | null>(null);
+  const [isCompletingFollowup, setIsCompletingFollowup] = useState(false);
+
+  const handleConfirmCompleteFollowup = async (flw: any) => {
+    setIsCompletingFollowup(true);
+    try {
+      const res = await fetch(`/api/followups/${flw.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "toggle_status" }),
+      });
+      if (!res.ok) throw new Error("Gagal mengubah status tugas follow-up.");
+      setConfirmCompleteFollowup(null);
+      setSuccessFeedback(
+        flw.status === "completed"
+          ? `Tugas "${flw.title}" dibuka kembali.`
+          : `Tugas "${flw.title}" berhasil ditandai selesai.`
+      );
+      loadCustomer();
+      setTimeout(() => setSuccessFeedback(""), 3500);
+    } catch (err: any) {
+      setErrorFeedback(err.message);
+    } finally {
+      setIsCompletingFollowup(false);
+    }
+  };
 
   const loadCustomer = useCallback(async () => {
     setIsLoading(true);
@@ -109,6 +142,17 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
 
   useEffect(() => {
     loadCustomer();
+    fetch("/api/followup-template")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.data) {
+          setTemplateConfig({
+            is_enabled: Boolean(json.data.is_enabled),
+            template_text: json.data.template_text || DEFAULT_FOLLOWUP_TEMPLATE,
+          });
+        }
+      })
+      .catch(() => {});
   }, [loadCustomer]);
 
   const handleUpdateCustomer = async (e: React.FormEvent) => {
@@ -148,7 +192,9 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
       if (!res.ok) throw new Error("Gagal mengubah status arsip.");
 
       setSuccessFeedback(
-        customer.archived_at ? "Pelanggan berhasil dipulihkan." : "Pelanggan berhasil diarsipkan."
+        customer.archived_at
+          ? "Pelanggan berhasil dipulihkan."
+          : "Pelanggan berhasil diarsipkan."
       );
       loadCustomer();
       setTimeout(() => setSuccessFeedback(""), 3500);
@@ -206,52 +252,75 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
     }
   };
 
-  // Safe manual wa.me link generator
   const getWhatsAppLink = (rawPhone: string | null) => {
     if (!rawPhone) return null;
-    let clean = rawPhone.replace(/\D/g, "");
-    if (clean.startsWith("0")) {
-      clean = "62" + clean.substring(1);
-    }
-    return `https://wa.me/${clean}`;
+    const prefilled = templateConfig.is_enabled
+      ? generateFollowupText(templateConfig.template_text, {
+          customerName: customer?.name,
+          company: customer?.company,
+          taskTitle: followups[0]?.title || "kerja sama bisnis kita",
+          dueAt: followups[0]?.due_at || new Date().toISOString().split("T")[0],
+        })
+      : null;
+    return buildManualWhatsAppHref(rawPhone, prefilled);
+  };
+
+  const getStageLabel = (stageId: string) => {
+    return PIPELINE_STAGES.find((s) => s.id === stageId)?.label || stageId;
   };
 
   return (
     <AppShell>
       <div className="space-y-6">
-        {/* Navigation Breadcrumb */}
         <div>
           <Link
             href="/pelanggan"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6F716D] hover:text-[#252927] transition-colors no-underline"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <MarkArrowLeft className="w-3.5 h-3.5" />
             <span>Kembali ke daftar pelanggan</span>
           </Link>
         </div>
 
-        {/* Feedback Messages */}
         {successFeedback && (
-          <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm rounded-md">
-            {successFeedback}
-          </div>
+          <LuxuryNotification
+            variant="luxury"
+            title="Pembaruan Profil Pelanggan"
+            message={successFeedback}
+            onClose={() => setSuccessFeedback("")}
+          />
         )}
 
         {errorFeedback && (
-          <div className="p-3.5 bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm rounded-md flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-            <span>{errorFeedback}</span>
-          </div>
+          <LuxuryNotification
+            variant="error"
+            title="Perhatian Profil Pelanggan"
+            message={errorFeedback}
+            onClose={() => setErrorFeedback("")}
+          />
         )}
 
         {isLoading ? (
-          <div className="p-12 text-center text-xs text-slate-400 bg-white border border-slate-200 rounded-lg">
-            Memuat informasi pelanggan...
+          <div
+            aria-busy="true"
+            aria-label="Memuat informasi pelanggan"
+            className="p-6 bg-[#FFFFFF] border border-[#E5E4DE] rounded-xl space-y-4"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-[#F7F6F1] animate-pulse shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-5 w-48 bg-[#F7F6F1] animate-pulse rounded" />
+                <div className="h-3.5 w-32 bg-[#F7F6F1] animate-pulse rounded" />
+              </div>
+            </div>
+            <p className="text-xs text-[#A8AAA4]">Memuat informasi pelanggan...</p>
           </div>
         ) : !customer ? (
-          <Card className="p-8 text-center">
-            <h2 className="text-base font-semibold text-slate-800">Pelanggan Tidak Ditemukan</h2>
-            <p className="text-xs text-slate-500 mt-1 mb-4">
+          <Card className="p-8 text-center rounded-xl">
+            <h2 className="text-base font-semibold text-[#252927]">
+              Pelanggan Tidak Ditemukan
+            </h2>
+            <p className="text-xs text-[#6F716D] mt-1 mb-4">
               Data pelanggan ini mungkin sudah dihapus atau tidak terdaftar pada workspace Anda.
             </p>
             <Link href="/pelanggan">
@@ -260,16 +329,15 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
           </Card>
         ) : (
           <div className="space-y-6">
-            {/* Customer Profile Card */}
-            <Card className="p-5 sm:p-6">
+            <Card className="p-5 sm:p-6 rounded-2xl">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-blue-700 text-white font-bold flex items-center justify-center text-lg shrink-0 shadow-xs">
+                  <div className="w-12 h-12 rounded-full bg-[#635BCE] text-white font-bold flex items-center justify-center text-lg shrink-0 shadow-xs">
                     {customer.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h1 className="text-xl font-bold text-slate-900">{customer.name}</h1>
+                      <h1 className="text-xl font-bold text-[#252927]">{customer.name}</h1>
                       {customer.archived_at && (
                         <Badge variant="warning" size="sm">
                           Diarsipkan
@@ -282,12 +350,12 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                       )}
                     </div>
                     {customer.company && (
-                      <p className="text-xs text-slate-600 flex items-center gap-1.5 mt-1 font-medium">
-                        <Building className="w-3.5 h-3.5 text-slate-400" />
+                      <p className="text-xs text-[#6F716D] flex items-center gap-1.5 mt-1 font-medium">
+                        <MarkBuilding className="w-3.5 h-3.5 text-[#6F716D]" />
                         <span>{customer.company}</span>
                       </p>
                     )}
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-[#6F716D] mt-1">
                       Terdaftar pada {formatDate(customer.created_at, true)}
                     </p>
                   </div>
@@ -299,12 +367,12 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                       href={getWhatsAppLink(customer.phone) || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-[#E5E4DE] bg-[#FFFFFF] text-[#252927] hover:bg-[#F7F6F1] transition-colors no-underline"
                       title="Buka WhatsApp manual (tautan eksternal)"
                     >
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                      <MarkMessage className="w-3.5 h-3.5 text-emerald-600" />
                       <span>WhatsApp</span>
-                      <ExternalLink className="w-3 h-3 text-slate-400" />
+                      <MarkExternal className="w-3 h-3 text-[#6F716D]" />
                     </a>
                   )}
 
@@ -314,7 +382,7 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                     onClick={() => setIsEditDialogOpen(true)}
                     className="gap-1.5 text-xs"
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
+                    <MarkEdit className="w-3.5 h-3.5" />
                     <span>Ubah data</span>
                   </Button>
 
@@ -322,16 +390,16 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                     variant="ghost"
                     size="sm"
                     onClick={handleToggleArchive}
-                    className="gap-1.5 text-xs text-slate-600"
+                    className="gap-1.5 text-xs text-[#6F716D]"
                   >
                     {customer.archived_at ? (
                       <>
-                        <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                        <MarkRestore className="w-3.5 h-3.5 text-[#635BCE]" />
                         <span>Pulihkan</span>
                       </>
                     ) : (
                       <>
-                        <Archive className="w-3.5 h-3.5" />
+                        <MarkArchive className="w-3.5 h-3.5" />
                         <span>Arsipkan</span>
                       </>
                     )}
@@ -341,120 +409,145 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsDeleteDialogOpen(true)}
-                    className="p-2 text-slate-400 hover:text-red-700 hover:bg-red-50"
+                    className="p-2 text-[#6F716D] hover:text-red-700 hover:bg-red-50"
                     title="Hapus pelanggan permanen"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <MarkTrash className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
 
-              {/* Contact Details Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-5 mt-5 border-t border-slate-100 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-5 mt-5 border-t border-[#E5E4DE] text-xs">
                 <div>
-                  <span className="text-slate-400 block mb-0.5">Nomor Telepon:</span>
-                  <span className="font-medium text-slate-800">{customer.phone || "-"}</span>
+                  <span className="text-[#6F716D] block mb-0.5">Nomor Telepon:</span>
+                  <span className="font-semibold text-[#252927]">{customer.phone || "-"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-0.5">Alamat Email:</span>
-                  <span className="font-medium text-slate-800">{customer.email || "-"}</span>
+                  <span className="text-[#6F716D] block mb-0.5">Alamat Email:</span>
+                  <span className="font-semibold text-[#252927]">{customer.email || "-"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-0.5">Perusahaan:</span>
-                  <span className="font-medium text-slate-800">{customer.company || "-"}</span>
+                  <span className="text-[#6F716D] block mb-0.5">Perusahaan:</span>
+                  <span className="font-semibold text-[#252927]">{customer.company || "-"}</span>
                 </div>
               </div>
 
               {customer.notes && (
-                <div className="mt-4 pt-4 border-t border-slate-100">
-                  <span className="text-slate-400 text-xs block mb-1">Catatan Kebutuhan:</span>
-                  <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-md whitespace-pre-wrap leading-relaxed">
+                <div className="mt-4 pt-4 border-t border-[#E5E4DE]">
+                  <span className="text-[#6F716D] text-xs block mb-1">Catatan Kebutuhan:</span>
+                  <p className="text-xs text-[#252927] bg-[#F7F6F1] border border-[#E5E4DE] p-3 rounded-lg whitespace-pre-wrap leading-relaxed">
                     {customer.notes}
                   </p>
                 </div>
               )}
             </Card>
 
-            {/* Related Tabs: Activities, Opportunities, Follow-ups */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-slate-200">
+              <div className="flex items-center gap-1 p-1.5 rounded-xl bg-[#FFFFFF] border border-[#E5E4DE] overflow-x-auto shadow-2xs">
                 <button
                   type="button"
                   onClick={() => setActiveTab("activities")}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+                  className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
                     activeTab === "activities"
-                      ? "border-blue-700 text-blue-700 font-semibold"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
+                      ? "text-[#635BCE] font-bold"
+                      : "text-[#6F716D] hover:text-[#252927]"
                   }`}
                 >
-                  <Clock className="w-4 h-4" />
-                  <span>Riwayat Aktivitas ({activities.length})</span>
+                  {activeTab === "activities" && (
+                    <motion.span
+                      layoutId="customer-detail-tab-pill"
+                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute inset-0 bg-[#E9E8FC] border border-[#D5D3F5] rounded-lg"
+                    />
+                  )}
+                  <MarkClock className="w-4 h-4 relative z-10" />
+                  <span className="relative z-10">Riwayat Aktivitas ({activities.length})</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setActiveTab("opportunities")}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+                  className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
                     activeTab === "opportunities"
-                      ? "border-blue-700 text-blue-700 font-semibold"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
+                      ? "text-[#635BCE] font-bold"
+                      : "text-[#6F716D] hover:text-[#252927]"
                   }`}
                 >
-                  <Kanban className="w-4 h-4" />
-                  <span>Peluang Penjualan ({opportunities.length})</span>
+                  {activeTab === "opportunities" && (
+                    <motion.span
+                      layoutId="customer-detail-tab-pill"
+                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute inset-0 bg-[#E9E8FC] border border-[#D5D3F5] rounded-lg"
+                    />
+                  )}
+                  <MarkFunnel className="w-4 h-4 relative z-10" />
+                  <span className="relative z-10">
+                    Peluang Penjualan ({opportunities.length})
+                  </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setActiveTab("followups")}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+                  className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors cursor-pointer whitespace-nowrap ${
                     activeTab === "followups"
-                      ? "border-blue-700 text-blue-700 font-semibold"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
+                      ? "text-[#635BCE] font-bold"
+                      : "text-[#6F716D] hover:text-[#252927]"
                   }`}
                 >
-                  <CalendarCheck2 className="w-4 h-4" />
-                  <span>Jadwal Follow-up ({followups.length})</span>
+                  {activeTab === "followups" && (
+                    <motion.span
+                      layoutId="customer-detail-tab-pill"
+                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                      className="absolute inset-0 bg-[#E9E8FC] border border-[#D5D3F5] rounded-lg"
+                    />
+                  )}
+                  <MarkSchedule className="w-4 h-4 relative z-10" />
+                  <span className="relative z-10">Jadwal Follow-up ({followups.length})</span>
                 </button>
               </div>
 
-              {/* Tab 1: Activities */}
               {activeTab === "activities" && (
-                <Card className="p-5">
-                  <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
-                    <h3 className="text-sm font-semibold text-slate-800">Linimasa Riwayat Interaksi</h3>
+                <Card className="p-5 rounded-2xl">
+                  <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#E5E4DE]">
+                    <h3 className="text-sm font-bold text-[#252927]">
+                      Riwayat Aktivitas &amp; Komunikasi
+                    </h3>
                     <Button
                       size="sm"
                       onClick={() => setIsAddActivityOpen(true)}
                       className="gap-1.5 text-xs h-8"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <MarkPlus className="w-3.5 h-3.5" />
                       <span>Catat aktivitas baru</span>
                     </Button>
                   </div>
 
                   {activities.length === 0 ? (
                     <EmptyState
-                      icon={Clock}
+                      icon={MarkClock}
                       title="Belum ada catatan aktivitas"
-                      description="Catatan panggilan, pertemuan, atau interaksi dengan pelanggan ini akan tercatat di linimasa ini."
+                      description="Catatan panggilan, pertemuan, atau diskusi dengan pelanggan ini akan tersimpan di sini."
                       action={
                         <Button
                           size="sm"
                           onClick={() => setIsAddActivityOpen(true)}
                           className="gap-1.5"
                         >
-                          <Plus className="w-4 h-4" />
+                          <MarkPlus className="w-4 h-4" />
                           <span>Catat aktivitas pertama</span>
                         </Button>
                       }
                     />
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {activities.map((act) => (
-                        <div key={act.id} className="p-3.5 bg-slate-50 rounded-md border border-slate-200/60">
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
+                        <div
+                          key={act.id}
+                          className="p-4 bg-[#F7F6F1] rounded-xl border border-[#E5E4DE]"
+                        >
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Badge variant="neutral" size="sm">
                                 {act.type === "catatan"
                                   ? "Catatan"
@@ -466,11 +559,17 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                                   ? "Pesan manual"
                                   : "Lainnya"}
                               </Badge>
-                              <span className="font-semibold text-slate-900">{act.title}</span>
+                              <span className="font-bold text-[#252927]">{act.title}</span>
                             </div>
-                            <span className="text-slate-400">{formatDate(act.happened_at, true)}</span>
+                            <span className="text-[#6F716D] shrink-0">
+                              {formatDate(act.happened_at, true)}
+                            </span>
                           </div>
-                          {act.body && <p className="text-xs text-slate-600 mt-2 whitespace-pre-wrap">{act.body}</p>}
+                          {act.body && (
+                            <p className="text-xs text-[#6F716D] mt-2 whitespace-pre-wrap leading-relaxed">
+                              {act.body}
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -478,12 +577,11 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                 </Card>
               )}
 
-              {/* Tab 2: Opportunities */}
               {activeTab === "opportunities" && (
-                <Card className="p-5">
+                <Card className="p-5 rounded-2xl">
                   {opportunities.length === 0 ? (
                     <EmptyState
-                      icon={Kanban}
+                      icon={MarkFunnel}
                       title="Belum ada peluang penjualan"
                       description="Peluang transaksi atau proyek dengan pelanggan ini akan ditampilkan di sini."
                     />
@@ -492,16 +590,28 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                       {opportunities.map((opp) => (
                         <div
                           key={opp.id}
-                          className="p-3.5 bg-white border border-slate-200 rounded-md flex items-center justify-between"
+                          className="p-4 bg-[#F7F6F1] border border-[#E5E4DE] rounded-xl flex items-center justify-between gap-3"
                         >
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{opp.title}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              Tahap: <span className="font-medium text-slate-800">{opp.stage}</span>
-                            </p>
+                          <div className="space-y-1">
+                            <p className="text-sm font-bold text-[#252927]">{opp.title}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[#6F716D]">Tahapan:</span>
+                              <Badge
+                                variant={
+                                  opp.stage === "berhasil"
+                                    ? "success"
+                                    : opp.stage === "tidak_berhasil"
+                                    ? "danger"
+                                    : "default"
+                                }
+                                size="sm"
+                              >
+                                {getStageLabel(opp.stage)}
+                              </Badge>
+                            </div>
                           </div>
                           <div className="text-right">
-                            <span className="text-sm font-bold text-slate-900">
+                            <span className="text-sm font-bold text-[#252927] tabular-nums">
                               {formatCurrency(opp.estimated_value)}
                             </span>
                           </div>
@@ -512,38 +622,70 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                 </Card>
               )}
 
-              {/* Tab 3: Followups */}
               {activeTab === "followups" && (
-                <Card className="p-5">
+                <Card className="p-5 rounded-2xl">
                   {followups.length === 0 ? (
                     <EmptyState
-                      icon={CalendarCheck2}
+                      icon={MarkSchedule}
                       title="Belum ada jadwal follow-up"
                       description="Jadwal pengingat untuk menghubungi pelanggan ini akan muncul di sini."
                     />
                   ) : (
                     <div className="space-y-3">
-                      {followups.map((flw) => (
-                        <div
-                          key={flw.id}
-                          className="p-3.5 bg-white border border-slate-200 rounded-md flex items-center justify-between"
-                        >
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{flw.title}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">Tenggat: {formatDate(flw.due_at)}</p>
+                      {followups.map((flw) => {
+                        const isCompleted = flw.status === "completed";
+                        return (
+                          <div
+                            key={flw.id}
+                            className="p-4 bg-[#F7F6F1] border border-[#E5E4DE] rounded-xl flex items-center justify-between gap-3"
+                          >
+                            <div className="flex items-start gap-3 min-w-0">
+                              <button
+                                type="button"
+                                role="checkbox"
+                                aria-checked={isCompleted}
+                                onClick={() => {
+                                  if (!isCompleted) {
+                                    setConfirmCompleteFollowup(flw);
+                                  } else {
+                                    handleConfirmCompleteFollowup(flw);
+                                  }
+                                }}
+                                className="followup-checkbox group/cb mt-0.5 w-5 h-5 rounded-md flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                                title={isCompleted ? "Buka kembali tugas" : "Tandai selesai"}
+                                aria-label={`Tandai status tugas ${flw.title}`}
+                              >
+                                {isCompleted ? (
+                                  <MarkCheck className="w-3.5 h-3.5 text-white" />
+                                ) : (
+                                  <MarkCheck className="w-3.5 h-3.5 text-[#635BCE] opacity-0 group-hover/cb:opacity-70 transition-opacity" />
+                                )}
+                              </button>
+                              <div className="min-w-0">
+                                <p
+                                  className={`text-sm font-semibold text-[#252927] ${
+                                    isCompleted ? "line-through text-[#A8AAA4]" : ""
+                                  }`}
+                                >
+                                  {flw.title}
+                                </p>
+                                <p className="text-xs text-[#6F716D] mt-0.5">
+                                  Tenggat: {formatDate(flw.due_at)}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge variant={isCompleted ? "success" : "warning"}>
+                              {isCompleted ? "Selesai" : "Belum selesai"}
+                            </Badge>
                           </div>
-                          <Badge variant={flw.status === "completed" ? "success" : "warning"}>
-                            {flw.status === "completed" ? "Selesai" : "Belum selesai"}
-                          </Badge>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </Card>
               )}
             </div>
 
-            {/* Modal Ubah Data Pelanggan */}
             <Dialog
               isOpen={isEditDialogOpen}
               onClose={() => setIsEditDialogOpen(false)}
@@ -581,7 +723,10 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                   onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
                 />
                 <div className="space-y-1.5">
-                  <label htmlFor="edit-customer-notes" className="block text-sm font-medium text-slate-800">
+                  <label
+                    htmlFor="edit-customer-notes"
+                    className="block text-sm font-medium text-[#252927]"
+                  >
                     Catatan
                   </label>
                   <textarea
@@ -589,11 +734,16 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                     rows={3}
                     value={editForm.notes}
                     onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                    className="w-full rounded-md border border-slate-300 p-2.5 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:border-transparent"
+                    className="w-full rounded-md border border-[#E5E4DE] p-2.5 text-sm text-[#252927] bg-[#FFFFFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BCE] focus-visible:border-transparent"
                   />
                 </div>
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsEditDialogOpen(false)}>
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E5E4DE]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditDialogOpen(false)}
+                  >
                     Batal
                   </Button>
                   <Button type="submit" size="sm" isLoading={isSubmittingEdit}>
@@ -603,7 +753,6 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
               </form>
             </Dialog>
 
-            {/* Modal Tambah Aktivitas */}
             <Dialog
               isOpen={isAddActivityOpen}
               onClose={() => setIsAddActivityOpen(false)}
@@ -612,15 +761,20 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
             >
               <form onSubmit={handleCreateActivity} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="activity-type" className="block text-sm font-medium text-slate-800">
-                    Tipe Aktivitas <span className="text-red-600">*</span>
+                  <label
+                    htmlFor="activity-type"
+                    className="block text-sm font-medium text-[#252927]"
+                  >
+                    Tipe Aktivitas
                   </label>
                   <select
                     id="activity-type"
                     required
                     value={activityForm.type}
-                    onChange={(e) => setActivityForm({ ...activityForm, type: e.target.value as any })}
-                    className="w-full rounded-md border border-slate-300 p-2.5 text-sm text-slate-900 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                    onChange={(e) =>
+                      setActivityForm({ ...activityForm, type: e.target.value as any })
+                    }
+                    className="w-full rounded-md border border-[#E5E4DE] p-2.5 text-sm text-[#252927] bg-[#FFFFFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BCE]"
                   >
                     <option value="catatan">Catatan</option>
                     <option value="telepon">Telepon</option>
@@ -639,7 +793,10 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                 />
 
                 <div className="space-y-1.5">
-                  <label htmlFor="activity-body" className="block text-sm font-medium text-slate-800">
+                  <label
+                    htmlFor="activity-body"
+                    className="block text-sm font-medium text-[#252927]"
+                  >
                     Rincian Pembahasan
                   </label>
                   <textarea
@@ -648,12 +805,17 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                     placeholder="Tuliskan hasil pembicaraan, respon pelanggan, atau kesepakatan yang dicapai..."
                     value={activityForm.body}
                     onChange={(e) => setActivityForm({ ...activityForm, body: e.target.value })}
-                    className="w-full rounded-md border border-slate-300 p-2.5 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:border-transparent"
+                    className="w-full rounded-md border border-[#E5E4DE] p-2.5 text-sm text-[#252927] bg-[#FFFFFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#635BCE] focus-visible:border-transparent"
                   />
                 </div>
 
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsAddActivityOpen(false)}>
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E5E4DE]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddActivityOpen(false)}
+                  >
                     Batal
                   </Button>
                   <Button type="submit" size="sm" isLoading={isSubmittingActivity}>
@@ -663,7 +825,6 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
               </form>
             </Dialog>
 
-            {/* Modal Konfirmasi Hapus */}
             <Dialog
               isOpen={isDeleteDialogOpen}
               onClose={() => setIsDeleteDialogOpen(false)}
@@ -672,10 +833,16 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
             >
               <div className="space-y-4 pt-2">
                 <div className="p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-800">
-                  Peringatan: Pelanggan <strong>{customer.name}</strong> akan dihapus permanen dari sistem.
+                  Peringatan: Pelanggan <strong>{customer.name}</strong> akan dihapus permanen
+                  dari sistem.
                 </div>
                 <div className="flex items-center justify-end gap-2.5 pt-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsDeleteDialogOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDeleteDialogOpen(false)}
+                  >
                     Batal
                   </Button>
                   <Button
@@ -689,6 +856,51 @@ export default function CustomerDetailPage({ params }: CustomerDetailProps) {
                   </Button>
                 </div>
               </div>
+            </Dialog>
+
+            <Dialog
+              isOpen={!!confirmCompleteFollowup}
+              onClose={() => setConfirmCompleteFollowup(null)}
+              title="Selesaikan Tugas Follow-up?"
+              description="Pastikan tindak lanjut kepada pelanggan ini sudah dilakukan sebelum menandai tugas sebagai selesai."
+            >
+              {confirmCompleteFollowup && (
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-lg bg-[#F7F6F1] border border-[#E5E4DE] space-y-1">
+                    <p className="text-sm font-semibold text-[#252927]">
+                      {confirmCompleteFollowup.title}
+                    </p>
+                    <p className="text-xs text-[#6F716D]">
+                      Tenggat: {formatDate(confirmCompleteFollowup.due_at)}
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-[#6F716D] leading-relaxed">
+                    Tugas ini akan ditandai sebagai{" "}
+                    <strong className="text-[#252927]">Selesai</strong> dan riwayatnya tetap
+                    tersimpan.
+                  </p>
+
+                  <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E5E4DE]">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmCompleteFollowup(null)}
+                    >
+                      Batalkan
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      isLoading={isCompletingFollowup}
+                      onClick={() => handleConfirmCompleteFollowup(confirmCompleteFollowup)}
+                    >
+                      Tandai Selesai
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Dialog>
           </div>
         )}

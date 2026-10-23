@@ -63,7 +63,9 @@ Treat these as examples, not mandatory copy if a screen requires a more precise 
 
 ## Prohibited writing patterns
 
-- Never use “peladen cloud”.
+- Never use “peladen cloud” or “baris pipa penjualan”.
+- Never claim absolute unverified guarantees such as “100% aman dari pemblokiran” or imply automatic WhatsApp synchronization, reading, or background sending.
+- Do not include invented statistics, fake testimonials, or exaggerated marketing slogans.
 - No word-for-word translation from an English framework or generated source.
 - No mixing several synonyms for the same entity across pages.
 - No overly formal or bureaucratic phrasing for simple UI actions.

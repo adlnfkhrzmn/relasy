@@ -8,6 +8,7 @@ export interface FollowupRecord {
   customer_id: string;
   customer_name?: string;
   customer_phone?: string | null;
+  customer_company?: string | null;
   opportunity_id: string | null;
   opportunity_title?: string | null;
   title: string;
@@ -88,6 +89,7 @@ export function getFollowups(
       f.*,
       c.name as customer_name,
       c.phone as customer_phone,
+      c.company as customer_company,
       o.title as opportunity_title
     FROM followups f
     JOIN customers c ON f.customer_id = c.id
@@ -114,11 +116,11 @@ export function getFollowups(
     query += " AND f.status = 'completed'";
   }
 
-  // Sort: completed by completed_at desc, pending by due_at asc
+  // Sort: completed by completed_at desc, pending by due_at asc and newest created first
   if (options.tab === "completed") {
     query += " ORDER BY f.completed_at DESC";
   } else {
-    query += " ORDER BY f.due_at ASC";
+    query += " ORDER BY f.due_at ASC, f.created_at DESC";
   }
 
   return (db.prepare(query).all(...params) as unknown) as FollowupRecord[];
@@ -132,6 +134,7 @@ export function getFollowupById(workspaceId: string, followupId: string): Follow
         f.*,
         c.name as customer_name,
         c.phone as customer_phone,
+        c.company as customer_company,
         o.title as opportunity_title
       FROM followups f
       JOIN customers c ON f.customer_id = c.id

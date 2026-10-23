@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { firstIssueMessage } from "@/lib/utils";
 import { getCurrentSession } from "@/lib/auth/session";
 import { ensureDefaultAccount } from "@/lib/db/bootstrap";
 import {
@@ -49,7 +50,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const body = await request.json();
+    // Body kosong atau JSON rusak harus dijawab 400, bukan 500.
+    const body = (await request.json().catch(() => null)) ?? {};
 
     // If payload contains stage change only
     if (body.stage && Object.keys(body).length === 1) {
@@ -67,7 +69,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const parsed = updateOpportunitySchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { message: parsed.error.issues[0]?.message || "Input tidak valid." },
+        { message: firstIssueMessage(parsed.error.issues, "Input tidak valid.") },
         { status: 400 }
       );
     }

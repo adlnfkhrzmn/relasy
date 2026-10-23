@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { firstIssueMessage } from "@/lib/utils";
 import { getCurrentSession } from "@/lib/auth/session";
 import { ensureDefaultAccount } from "@/lib/db/bootstrap";
 import {
@@ -48,17 +49,43 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const body = await request.json();
+    let body: Record<string, any> = {};
+    const rawText = await request.text();
+    if (rawText.trim()) {
+      let parsedBody: unknown;
+      try {
+        parsedBody = JSON.parse(rawText);
+      } catch {
+        // Body cacat tidak boleh dianggap sebagai "toggle status", karena itu
+        // akan membalik status tugas tanpa perintah yang sah dari pengguna.
+        return NextResponse.json(
+          { message: "Format permintaan tidak valid." },
+          { status: 400 }
+        );
+      }
+      if (parsedBody && typeof parsedBody === "object" && !Array.isArray(parsedBody)) {
+        body = parsedBody as Record<string, any>;
+      } else {
+        return NextResponse.json(
+          { message: "Format permintaan tidak valid." },
+          { status: 400 }
+        );
+      }
+    }
 
-    // Check specific action
-    if (body.action === "toggle_status") {
+    if (body.action === "toggle_status" || Object.keys(body).length === 0) {
       const existing = getFollowupById(workspaceId, id);
       if (!existing) {
         return NextResponse.json({ message: "Tugas tidak ditemukan." }, { status: 404 });
       }
       const newStatus = existing.status === "completed" ? "pending" : "completed";
-      const updated = updateFollowupStatus(workspaceId, id, newStatus);
-      return NextResponse.json({ success: true, status: newStatus });
+      updateFollowupStatus(workspaceId, id, newStatus);
+      const refreshed = getFollowupById(workspaceId, id);
+      return NextResponse.json({
+        success: true,
+        status: newStatus,
+        data: refreshed,
+      });
     }
 
     if (body.action === "reschedule" && body.dueAt) {
@@ -66,13 +93,18 @@ export async function PUT(request: Request, { params }: RouteParams) {
       if (!updated) {
         return NextResponse.json({ message: "Tugas tidak ditemukan." }, { status: 404 });
       }
-      return NextResponse.json({ success: true, message: "Jadwal berhasil diperbarui." });
+      const refreshed = getFollowupById(workspaceId, id);
+      return NextResponse.json({
+        success: true,
+        message: "Jadwal berhasil diperbarui.",
+        data: refreshed,
+      });
     }
 
     const parsed = updateFollowupSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { message: parsed.error.issues[0]?.message || "Input tidak valid." },
+        { message: firstIssueMessage(parsed.error.issues, "Input tidak valid.") },
         { status: 400 }
       );
     }

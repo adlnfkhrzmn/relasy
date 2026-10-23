@@ -48,6 +48,18 @@ Record meaningful decisions in reverse chronological order. Use the format below
 - Rationale: Small business owners need reliable, authentic visibility into their sales and follow-up activities without confusing fictional data.
 - Related files: `src/app/api/dashboard/route.ts`, `src/app/ringkasan/page.tsx`, `src/lib/db/repositories/dashboard.repo.ts`, `tests-e2e/dashboard-flow.spec.ts`
 
+### D-008 — Executive luxury UI upgrade, WebGL2 liquid sculpture hero, and follow-up template engine
+- Date: 2026-10-23
+- Status: Confirmed
+- Context: User requested an executive luxury visual upgrade with refined animations, a front showcase landing page (`/`) explaining all features and unique value propositions, Google SEO structured data, a collapsible desktop sidebar ("hide tombol samping"), a bespoke Relasy vector logo, luxury notifications, and an Active/Inactive Follow-up Text Template engine.
+- Decision:
+  1. **WebGL2 Liquid Sculpture Hero (`src/components/ui/liquid-sculpture-hero.tsx`)**: Integrated GPGPU particle simulation (~100k particles) sampling from a local CORS-safe SVG sculpture (`/sculpture-relasy.svg`) on both the Front Showcase (`/`) and the Executive Dashboard (`/ringkasan`).
+  2. **Front Showcase & Google SEO (`src/app/page.tsx` & `src/app/layout.tsx`)**: Built a dedicated front landing page (`Halaman Muka`) as the first navigation item, showcasing all 6 modules, a strategic CRM comparison matrix, interactive live template simulation, and `SoftwareApplication` + `FAQPage` JSON-LD structured data.
+  3. **Collapsible Sidebar (`src/components/layout/app-shell.tsx`)**: Added smooth desktop sidebar hide/show controls (`Sembunyikan menu samping` / `Tampilkan menu samping`) persisted in `localStorage`.
+  4. **Follow-up Text Template Engine (`src/lib/followup-template.ts`, `/api/followup-template`)**: Added SQLite-backed `followup_templates` table per workspace with an `Aktif` / `Nonaktif` switch, 3 executive presets, and dynamic variable interpolation (`{nama}`, `{perusahaan}`, `{judul_tugas}`, `{tanggal}`). When active, scheduling or clicking `Follow-up` automatically generates the personalized message.
+  5. **Bespoke Brand Emblem & Luxury Notifications (`src/components/ui/relasy-logo.tsx`, `src/components/ui/luxury-toast.tsx`)**: Replaced generic badges/alerts with an octagonal gold-and-sapphire vector emblem and obsidian glassmorphic notifications.
+- Related files: `src/components/ui/liquid-sculpture-hero.tsx`, `src/components/ui/relasy-logo.tsx`, `src/components/ui/luxury-toast.tsx`, `src/lib/followup-template.ts`, `src/app/page.tsx`, `src/app/follow-up/page.tsx`
+
 ### D-007 — Core architecture and technology stack
 - Date: 2026-10-23
 - Status: Confirmed
@@ -88,6 +100,67 @@ Record meaningful decisions in reverse chronological order. Use the format below
 - Status: Confirmed
 - Decision: User-facing interface copy uses natural contemporary Indonesian and preserves established technical terms when appropriate. “Peladen cloud” is prohibited.
 - Rationale: The product must not sound like machine-translated software.
+
+### D-011 — Standalone Front Landing Page, Logo-Triggered Sidebar, Global Dark/Light Theme, and Animated Login
+- Date: 2026-10-23
+- Status: Confirmed
+- Context: User requested removing the sidebar/menu button and `Relasy > Halaman Muka` breadcrumb from `/`, replacing the `/` header with section navigation pills (`Beranda`, `Keunggulan`, `Modul`, `Template`, `Perbandingan`, `Panduan`) and a `Masuk` login button, routing post-login to `/dashboard`, removing `"Halaman Muka"` from the signed-in sidebar menu, making the `<RelasyLogo />` click toggle the sidebar/menu, adding animated button transitions (`framer-motion` `layoutId`), adding Dark/Light mode across all pages without button/font color clashes, and upgrading `/login` with the `DotMap` + `SignInCard` `framer-motion` design.
+- Decision:
+  1. Made `/` (`src/app/page.tsx`) a standalone showcase page with sticky section navigation pills (`layoutId="landing-section-pill"`), `<ThemeToggle />`, and `<Link href="/login">Masuk</Link>`.
+  2. Added `/dashboard` (`src/app/dashboard/page.tsx`) as the primary post-login route while keeping `/ringkasan` working for backward compatibility.
+  3. Removed `"Halaman Muka"` from `navigationItems` in `src/components/layout/nav-links.tsx` and added `framer-motion` `layoutId` active pills across navigation and segmented tabs.
+  4. Wired `<RelasyLogo />` in `AppShell` to toggle the sidebar on desktop and open the menu drawer on mobile without a separate menu button.
+  5. Added global `ThemeProvider` and `<ThemeToggle />` (`src/components/ui/theme-toggle.tsx`) with `html.dark` high-contrast styling in `src/app/globals.css`.
+  6. Implemented `src/components/ui/travel-connect-signin-1.tsx` (`DotMap` + `SignInCard`) on `/login`, connected to `POST /api/auth/login` and redirecting to `/dashboard`.
+- Related files: `src/app/page.tsx`, `src/app/dashboard/page.tsx`, `src/app/login/page.tsx`, `src/components/ui/travel-connect-signin-1.tsx`, `src/components/ui/theme-toggle.tsx`, `src/components/layout/app-shell.tsx`, `src/components/layout/nav-links.tsx`
+
+### D-012 — Finalized Official Relasy Brand Color Palette Migration
+- Date: 2026-10-23
+- Status: Confirmed
+- Context: The visual identity of Relasy was finalized around four official brand colors (`#252927` Ink, `#F7F6F1` Warm White, `#635BCE` Indigo, `#E9E8FC` Soft Indigo) and four supporting UI colors (`#FFFFFF` card surface, `#E5E4DE` subtle borders, `#6F716D` secondary text, `#A8AAA4` disabled elements), while preserving the approved Relasy logo (`src/components/ui/relasy-logo.tsx`) unchanged and keeping semantic status colors (`emerald`, `amber`, `red`) strictly for operational states.
+- Decision:
+  1. Defined centralized CSS custom properties in `src/app/globals.css` (`--color-ink`, `--color-warm-white`, `--color-indigo`, `--color-soft-indigo`, `--color-surface`, `--color-border`, `--color-text-secondary`, `--color-disabled`) and Tailwind semantic tokens in `tailwind.config.ts`.
+  2. Migrated all shared UI primitives (`Button`, `Input`, `Select`, `Card`, `Badge`, `StatCard`, `EmptyState`, `Dialog`, `LuxuryToast`, `ThemeToggle`, `LiquidSculptureHero`, `TravelConnectSignIn`) and layout shells (`AppShell`, `NavLinks`) to the official palette.
+  3. Migrated all application routes (`/`, `/login`, `/dashboard`, `/ringkasan`, `/pelanggan`, `/pelanggan/[id]`, `/pipeline`, `/follow-up`, `/pengaturan`) and `public/sculpture-relasy.svg` to the official palette.
+  4. Preserved `src/components/ui/relasy-logo.tsx` untouched.
+- Related files: `tailwind.config.ts`, `src/app/globals.css`, `docs/design.md`, `src/components/ui/*`, `src/components/layout/*`, `src/app/*`
+
+### D-014 — Official Relasy Logo Mark, Fixed Landing Top Bar, Custom Template Architecture, Memorable Comparison & Guide, Quiet Login Frame, and Follow-up Checkbox/Dark-Mode Fixes
+- Date: 2026-10-23
+- Status: Confirmed
+- Context: User requested 12 targeted UI, logo, and interaction improvements based on live inspection screenshots:
+  1. Elevate the landing page (`/`) typography, cards, and layout rhythm.
+  2. Remove all action links (`Lihat Dashboard`, `Buka Pelanggan`, `Buka Pipeline`, `Buka Follow-up`, `Atur Template`, `Lihat Riwayat`, `Buka Dashboard`) from the Modul Aplikasi section (`#ekosistem-fitur`).
+  3. Keep the landing page top navigation bar with the section Table of Contents permanently fixed at the top (`fixed top-0 inset-x-0 z-50`).
+  4. Remove the simulated customer message preview from the Template Pesan section (`#simulasi-template`) and instead explain how users can create custom text templates (`custom template teks`) with dynamic variables (`{nama}`, `{perusahaan}`, `{judul_tugas}`, `{tanggal}`).
+  5. Redesign the Comparison section (`#perbandingan-crm`) so the Relasy brand feels memorable and relatable (`"oh iya bener juga"`).
+  6. Redesign the Panduan Penggunaan section (`#panduan-crm`) into a modern, architectural 3-step workflow blueprint.
+  7. Remove the CRM logo and outer header chrome from `/login`, move the Light/Dark `ThemeToggle` inside the login card header, and leave the surrounding page edges quiet.
+  8. Elevate the `/dashboard` (`/ringkasan`) UI with an executive operational header and financial/completion ledger strip.
+  9. Fix the follow-up checkbox completion flow (`PUT /api/followups/[id]`, `Dialog` multi-instance `useEffect` handling, and high-contrast `.followup-checkbox` styling in Light and Dark modes).
+  10. Redesign the `/follow-up` template bar, preset cards (fixing `.bg-[#E9E8FC]/70` dark-mode contrast), segmented tab bar, and task row action buttons.
+  11. Apply `antislop` and `antislop-ui` rules across all modified views.
+  12. Replace `RelasyLogo` (`src/components/ui/relasy-logo.tsx`) with the new official Relasy geometric lowercase `"r"` mark + lowercase `"relasy"` wordmark, optimized for both Light and Dark modes.
+- Decision:
+  1. Implemented the new official Relasy logo in `src/components/ui/relasy-logo.tsx` using the geometric lowercase `"r"` mark (`#635BCE` in light mode, `#7B74E8` in dark mode) and lowercase `"relasy"` wordmark (`#252927` in light mode, `#F7F6F1` in dark mode) without any enclosing dark box.
+  2. Redesigned `src/app/page.tsx` and `src/components/ui/hero-dithering-card.tsx` with a `fixed top-0 inset-x-0 z-50` header bar, a 6-module Bento specification grid without action links, a Custom Template Architecture showcase without fake customer message previews, a relatable 4-case Comparison Matrix, and a 3-stage Workflow Blueprint guide.
+  3. Simplified `src/app/login/page.tsx` and `src/components/ui/travel-connect-signin-1.tsx` to a single centered `SignInCard` with `<ThemeToggle />` integrated inside the card header and quiet surrounding edges.
+  4. Hardened `PUT /api/followups/[id]` in `src/app/api/followups/[id]/route.ts` to safely parse `request.text()` without throwing `SyntaxError: Unexpected end of JSON input`, fixed `src/components/ui/dialog.tsx` `useEffect` lifecycle when multiple dialogs are mounted, and added `.followup-checkbox` and dark-mode opacity token rules in `src/app/globals.css`.
+  5. Upgraded `src/app/ringkasan/page.tsx`, `src/components/ui/stat-card.tsx`, and `src/app/follow-up/page.tsx` with tactile switches, segmented tab bars, and cohesive action toolbars.
+- Related files: `src/components/ui/relasy-logo.tsx`, `src/components/ui/hero-dithering-card.tsx`, `src/app/page.tsx`, `src/app/login/page.tsx`, `src/components/ui/travel-connect-signin-1.tsx`, `src/app/ringkasan/page.tsx`, `src/components/ui/stat-card.tsx`, `src/app/follow-up/page.tsx`, `src/app/api/followups/[id]/route.ts`, `src/components/ui/dialog.tsx`, `src/app/globals.css`
+
+### D-013 — Dithering Hero CTA, Transparent Clickable Logo, Follow-up Completion Confirmation, Refined Scrollbars, and Customer CSV Import/Export
+- Date: 2026-10-23
+- Status: Confirmed
+- Context: Refined the application UI, copywriting, and workflows to replace the homepage hero with the `@paper-design/shaders-react` Dithering CTA card in Indigo (`#635BCE`), keep clickable logo containers transparent, remove boilerplate demo credentials from public pages, require explicit confirmation before completing follow-up tasks, style slim accessible scrollbars, and add full Customer CSV Import and Export.
+- Decision:
+  1. Created `src/components/ui/hero-dithering-card.tsx` (`CTASection`) using `@paper-design/shaders-react` `Dithering` (`colorFront="#635BCE"`, `prefers-reduced-motion` support) and redesigned `src/app/page.tsx` sections with distinct layouts and direct Indonesian copywriting.
+  2. Made all clickable `<RelasyLogo />` wrappers transparent across normal, hover, active, and focus states while preserving `src/components/ui/relasy-logo.tsx` untouched.
+  3. Removed visible default demo-account credentials and demo-login boilerplate from `src/components/ui/travel-connect-signin-1.tsx`.
+  4. Added an explicit confirmation dialog (`"Batalkan"` / `"Tandai Selesai"`) before marking any unfinished follow-up task as completed in `/follow-up`, `/dashboard` (`/ringkasan`), and `/pelanggan/[id]`.
+  5. Added slim WebKit and Firefox scrollbar rules (`#C8C6BE` thumb, `#635BCE` hover) and calm `180ms–200ms` transitions in `src/app/globals.css`, `src/components/layout/nav-links.tsx`, and `src/components/layout/app-shell.tsx`.
+  6. Implemented full Customer CSV Import and Export (`src/lib/customer-csv.ts`, `src/app/api/customers/import/route.ts`, `src/app/api/customers/export/route.ts`, and `src/app/pelanggan/page.tsx`) with delimiter auto-detection (`,` and `;`), UTF-8 BOM support, leading-zero phone preservation, column mapping, duplicate detection, explicit confirmation, and result reporting.
+- Related files: `src/components/ui/hero-dithering-card.tsx`, `src/app/page.tsx`, `src/components/layout/app-shell.tsx`, `src/components/ui/travel-connect-signin-1.tsx`, `src/app/follow-up/page.tsx`, `src/app/ringkasan/page.tsx`, `src/app/pelanggan/page.tsx`, `src/lib/customer-csv.ts`, `src/app/api/customers/import/route.ts`, `src/app/api/customers/export/route.ts`
 
 ## Decision entry template
 

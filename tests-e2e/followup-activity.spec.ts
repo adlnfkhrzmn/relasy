@@ -35,23 +35,39 @@ test.describe("Activity History & Follow-up Tasks User Flows (Phase 6)", () => {
     // Verify task is visible in today's tab
     await expect(page.getByText(followUpTitle).first()).toBeVisible();
 
-    // 3. Mark task as completed
-    const completeButton = page.getByRole("button", {
+    // 3. Test explicit confirmation flow when clicking follow-up checkbox
+    const completeCheckbox = page.getByRole("checkbox", {
       name: `Tandai status tugas ${followUpTitle}`,
     });
-    await completeButton.click();
-    await page.waitForTimeout(800);
+    await completeCheckbox.click();
 
-    // Click "Selesai" tab and verify it's there
+    // Verify confirmation dialog opens and task is NOT completed yet
+    const confirmDialog = page.getByRole("dialog");
+    await expect(confirmDialog).toBeVisible();
+    await expect(page.getByText("Selesaikan Tugas Follow-up?")).toBeVisible();
+
+    // Click "Batalkan" first -> task must remain unchanged and unchecked
+    await page.getByRole("button", { name: "Batalkan" }).click();
+    await expect(confirmDialog).not.toBeVisible();
+    await expect(completeCheckbox).toHaveAttribute("aria-checked", "false");
+
+    // Click checkbox again and confirm with "Tandai Selesai"
+    await completeCheckbox.click();
+    await expect(confirmDialog).toBeVisible();
+    await page.getByRole("button", { name: "Tandai Selesai" }).click();
+    await expect(confirmDialog).not.toBeVisible();
+    await page.waitForTimeout(500);
+
+    // Click "Selesai" tab and verify task and its note are preserved there
     await page.locator("div.border-b button", { hasText: "Selesai" }).click();
     await expect(page.getByText(followUpTitle).first()).toBeVisible();
 
     // Reopen task
-    const reopenButton = page.getByRole("button", {
+    const reopenCheckbox = page.getByRole("checkbox", {
       name: `Tandai status tugas ${followUpTitle}`,
     });
-    await reopenButton.click();
-    await page.waitForTimeout(800);
+    await reopenCheckbox.click();
+    await page.waitForTimeout(500);
 
     // Switch back to "Hari ini" tab
     await page.locator("div.border-b button", { hasText: "Hari ini" }).click();

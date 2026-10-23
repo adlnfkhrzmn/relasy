@@ -1,147 +1,258 @@
-# Relasy — CRM Web Application untuk Bisnis Mandiri
+# Relasy
 
-Relasy adalah aplikasi web Customer Relationship Management (CRM) mandiri yang dirancang khusus untuk pemilik usaha kecil dan menengah (UMKM) di Indonesia. Aplikasi ini fokus pada efisiensi pencatatan pelanggan, pengelolaan pipeline penjualan bertahap, dan pengingat follow-up tepat waktu tanpa beban integrasi eksternal yang rumit.
+**CRM mandiri untuk bisnis Indonesia.** Kelola data pelanggan, pantau pipeline penjualan dalam Rupiah, dan jadwalkan follow-up tanpa integrasi eksternal yang rumit.
 
-Aplikasi ini dibangun 100% menggunakan bahasa Indonesia yang natural, kontemporer, dan ramah pengguna sesuai dengan standar panduan gaya bahasa `docs/content-style-guide.md`.
+![Beranda Relasy](docs/screenshots/01-beranda.png)
 
----
-
-## Fitur Utama Relasy
-
-1. **Ringkasan Bisnis (Dashboard Live)**:
-   - Metrik agregat waktu-nyata: Pelanggan aktif, peluang terbuka, total estimasi nilai pipeline, follow-up hari ini, tugas terlambat, dan peluang yang berhasil dimenangkan.
-   - Daftar follow-up hari ini dengan aksi penyelesaian langsung dari dashboard.
-   - Riwayat interaksi dan aktivitas pelanggan terkini.
-   - Pintasan langsung dari kartu metrik ke daftar data terkait.
-
-2. **Pengelolaan Data Pelanggan**:
-   - Pencatatan lengkap: Nama lengkap, telepon/WhatsApp, email, nama usaha/perusahaan, sumber kontak, dan catatan kebutuhan.
-   - Pencarian instan dan penyaringan status (Aktif vs. Diarsipkan).
-   - Tautan langsung `wa.me` (eksternal, tanpa sinkronisasi otomatis).
-   - Halaman rincian pelanggan dengan tab timeline aktivitas interaksi, peluang penjualan, dan jadwal follow-up.
-   - Fitur arsip, pemulihan dari arsip, dan penghapusan data dengan konfirmasi aman.
-
-3. **Pipeline Penjualan & Peluang Transaksi**:
-   - 5 tahapan penjualan terstruktur: **Baru**, **Dihubungi**, **Negosiasi**, **Berhasil**, dan **Tidak berhasil**.
-   - Tampilan Papan Kanban interaktif dan Tampilan Tabel ringkas.
-   - Penghitungan otomatis total nilai transaksi per tahap (format Rupiah Indonesia).
-   - Transisi tahapan yang aksesibel dengan dukungan navigasi keyboard dan pemilih dropdown.
-
-4. **Riwayat Aktivitas & Jadwal Follow-up**:
-   - 5 jenis interaksi: **Catatan**, **Telepon**, **Pertemuan**, **Pesan manual**, dan **Lainnya**.
-   - Manajemen follow-up dengan 4 tab filter: **Hari ini**, **Mendatang**, **Terlambat**, dan **Selesai**.
-   - Penjadwalan ulang tanggal tenggat dan pembaruan status tugas.
-   - Penanganan zona waktu lokal yang konsisten.
-
-5. **Pengaturan Akun & Workspace**:
-   - Konfigurasi nama bisnis/workspace mandiri.
-   - Profil pengguna dan kontak akun pemilik usaha.
-   - Status database lokal dan isolasi keamanan data multi-tenant.
+> **Ini versi demo.** Repositori publik ini memuat source code untuk dibaca dan dinilai. Versi lengkap, termasuk hak pakai komersial, dijual terpisah. Lihat [Membeli source code](#membeli-source-code) di bagian paling bawah.
 
 ---
 
-## Teknologi yang Digunakan
+## Daftar isi
 
-- **Framework**: Next.js 15 (App Router, React 19, TypeScript).
-- **Styling**: Tailwind CSS dengan palet warna slate/blue bernilai kontras tinggi (WCAG AA).
-- **Database**: SQLite lokal mandiri menggunakan native `node:sqlite` (`DatabaseSync` dengan WAL mode dan foreign keys).
-- **Keamanan**: Autentikasi sesi HMAC-SHA256, enkripsi kata sandi `bcryptjs`, validasi skema server-side dengan `zod`, dan isolasi boundary multi-tenant per workspace.
-- **Pengujian**: Vitest (Unit & Integration) dan Playwright (End-to-End browser testing untuk Desktop dan Mobile Chrome viewports).
-
----
-
-## Panduan Instalasi dan Menjalankan Aplikasi
-
-### Persyaratan Sistem
-- Node.js versi 20+ (Direkomendasikan Node.js v24.15.0 atau lebih baru).
-- npm versi 10+ (Di Windows PowerShell, selalu jalankan `npm.cmd` dan `npx.cmd`).
-
-### Langkah-langkah
-1. **Clone atau buka repositori Relasy**:
-   ```powershell
-   cd c:\Website\Relasy
-   ```
-
-2. **Konfigurasi Environment Variables**:
-   Salin berkas `.env.example` menjadi `.env.local`:
-   ```powershell
-   Copy-Item .env.example .env.local
-   ```
-   *Catatan*: Port aplikasi disetel secara eksplisit ke **port 3005** (`http://localhost:3005`).
-
-3. **Install Dependensi**:
-   ```powershell
-   npm.cmd install
-   ```
-
-4. **Menjalankan Server Pengembangan (Dev Mode)**:
-   ```powershell
-   npm.cmd run dev
-   ```
-   Aplikasi dapat diakses di browser melalui: `http://localhost:3005`
-
-5. **Membangun Versi Produksi (Production Build)**:
-   ```powershell
-   npm.cmd run build
-   ```
-
-6. **Menjalankan Server Produksi**:
-   ```powershell
-   npm.cmd start
-   ```
+- [Kenapa Relasy](#kenapa-relasy)
+- [Fitur](#fitur)
+- [Tangkapan layar](#tangkapan-layar)
+- [Teknologi](#teknologi)
+- [Menjalankan secara lokal](#menjalankan-secara-lokal)
+- [Akun demo](#akun-demo)
+- [Pengujian](#pengujian)
+- [Struktur proyek](#struktur-proyek)
+- [Keputusan desain](#keputusan-desain)
+- [Membeli source code](#membeli-source-code)
 
 ---
 
-## Menjalankan Pengujian (Testing)
+## Kenapa Relasy
 
-- **Unit & Integration Tests (Vitest)**:
-  ```powershell
-  npm.cmd test
-  ```
-  Menjalankan 21 unit & integration tests yang mencakup operasi database, otentikasi sesi, CRUD pelanggan, pipeline peluang, follow-up, metrik dashboard, dan isolasi tenant.
+Sebagian besar CRM dibangun untuk tim penjualan besar dengan proses yang sudah mapan. Pemilik usaha kecil justru butuh sebaliknya: satu tempat untuk menjawab tiga pertanyaan setiap pagi.
 
-- **End-to-End Browser Tests (Playwright)**:
-  ```powershell
-  npm.cmd run test:e2e
-  ```
-  Menjalankan 22 browser tests komprehensif pada browser Desktop Chromium dan Mobile Chrome viewport (Pixel 5, lebar 393px).
+1. Pelanggan mana yang perlu saya hubungi hari ini?
+2. Peluang mana yang paling dekat closing?
+3. Apa langkah berikutnya untuk tiap pelanggan?
 
-- **TypeScript Typecheck**:
-  ```powershell
-  npx.cmd tsc --noEmit
-  ```
+Relasy menjawab ketiganya di satu layar, dengan bahasa Indonesia yang wajar dan format Rupiah asli. Tidak ada grafik hiasan, tidak ada metrik karangan, tidak ada integrasi yang harus disiapkan lebih dulu.
+
+**Prinsip yang dipegang:**
+
+- **Data milik Anda.** Database SQLite lokal di mesin Anda sendiri, tanpa layanan pihak ketiga.
+- **Jujur pada keadaan.** Angka di dashboard berasal dari data nyata. Kondisi kosong menampilkan langkah berikutnya, bukan angka palsu.
+- **Cepat dipakai.** Tanpa onboarding berlapis, tanpa konfigurasi wajib.
 
 ---
 
-## Akun Demo Bawaan
+## Fitur
 
-Saat pertama kali aplikasi dijalankan, database SQLite lokal di `./data/relasy.db` akan membuat akun admin bawaan secara otomatis:
-- **Email**: `pemilik@usaha.id`
-- **Kata Sandi**: `relasy123`
-- **Workspace**: `Usaha Saya`
+### Ringkasan bisnis
+
+Dashboard yang menempatkan pekerjaan penjualan di depan, bukan dinding kartu KPI.
+
+- Metrik nyata: pelanggan aktif, peluang terbuka, total nilai pipeline, follow-up hari ini, tugas terlambat, peluang menang.
+- Daftar follow-up hari ini dengan penyelesaian langsung lewat dialog konfirmasi.
+- Riwayat aktivitas terbaru lintas pelanggan.
+- Setiap kartu metrik menaut ke daftar data terkait.
+
+### Data pelanggan
+
+- Pencatatan nama, telepon/WhatsApp, email, perusahaan, sumber kontak, dan catatan kebutuhan.
+- Pencarian instan serta penyaringan status Aktif dan Diarsipkan.
+- Halaman rincian dengan linimasa aktivitas, peluang terbuka, dan jadwal follow-up.
+- Arsip, pemulihan, dan penghapusan dengan konfirmasi.
+- Impor CSV dengan pratinjau validasi: baris valid, duplikat, dan tidak valid dihitung terpisah sebelum disimpan.
+- Ekspor CSV yang mempertahankan angka nol di depan pada nomor telepon.
+
+### Pipeline penjualan
+
+- Lima tahapan: **Baru**, **Dihubungi**, **Negosiasi**, **Berhasil**, **Tidak berhasil**.
+- Dua tampilan: papan Kanban dan tabel ringkas.
+- Total nilai per tahap dalam format Rupiah.
+- Perubahan tahap lewat dropdown yang tetap bisa dioperasikan dengan keyboard.
+
+### Aktivitas dan follow-up
+
+- Lima jenis interaksi: Catatan, Telepon, Pertemuan, Pesan manual, Lainnya.
+- Empat tab: Hari ini, Mendatang, Terlambat, Selesai.
+- Penjadwalan ulang tenggat dan pembaruan status dengan konfirmasi eksplisit.
+- Template teks follow-up otomatis yang bisa diaktifkan dan disesuaikan, lalu disalin ke WhatsApp.
+
+### Pengaturan
+
+- Nama usaha dan profil pemilik.
+- Status database lokal dan penjelasan isolasi data per workspace.
 
 ---
 
-## Struktur Direktori
+## Tangkapan layar
+
+| Tampilan | Berkas |
+| --- | --- |
+| Beranda | `docs/screenshots/01-beranda.png` |
+| Pratinjau aplikasi | `docs/screenshots/02-pratinjau.png` |
+| Masuk | `docs/screenshots/03-masuk.png` |
+| Ringkasan bisnis | `docs/screenshots/04-dashboard.png` |
+| Data pelanggan | `docs/screenshots/05-pelanggan.png` |
+| Pipeline penjualan | `docs/screenshots/06-pipeline.png` |
+| Follow-up | `docs/screenshots/07-follow-up.png` |
+
+![Ringkasan bisnis](docs/screenshots/04-dashboard.png)
+
+![Pipeline penjualan](docs/screenshots/06-pipeline.png)
+
+---
+
+## Teknologi
+
+| Lapisan | Pilihan |
+| --- | --- |
+| Framework | Next.js 15 (App Router), React 19, TypeScript |
+| Styling | Tailwind CSS dengan token warna eksplisit |
+| Database | SQLite lokal lewat `node:sqlite` (`DatabaseSync`, WAL, foreign keys) |
+| Autentikasi | Sesi HMAC-SHA256, kata sandi `bcryptjs` |
+| Validasi | `zod` di sisi server |
+| Animasi | Framer Motion, menghormati `prefers-reduced-motion` |
+| Pengujian | Vitest untuk unit dan integrasi, Playwright untuk end-to-end |
+
+Tidak ada layanan eksternal, tidak ada API key pihak ketiga, tidak ada telemetri.
+
+---
+
+## Menjalankan secara lokal
+
+### Persyaratan
+
+- Node.js 20 atau lebih baru. `node:sqlite` memerlukan Node 22+ untuk build produksi yang stabil.
+- npm 10 atau lebih baru.
+
+### Langkah
+
+```bash
+# 1. Pasang dependensi
+npm install
+
+# 2. Siapkan environment
+cp .env.example .env.local
+
+# 3. Jalankan server pengembangan
+npm run dev
+```
+
+Buka `http://localhost:3005`.
+
+### Build produksi
+
+```bash
+npm run build
+npm start
+```
+
+> **Catatan:** jangan menjalankan `npm run build` saat `npm run dev` masih aktif. Keduanya memakai direktori `.next` yang sama dan dapat merusak cache. Hentikan dev server, hapus `.next`, lalu build.
+
+### Environment
+
+| Variabel | Keterangan |
+| --- | --- |
+| `NEXT_PUBLIC_APP_URL` | URL aplikasi, default `http://localhost:3005` |
+| `SESSION_SECRET` | Kunci penandatanganan sesi, minimal 32 karakter di produksi |
+| `DATABASE_PATH` | Lokasi berkas SQLite, default `./data/relasy.db` |
+
+---
+
+## Akun demo
+
+Saat pertama kali dijalankan, aplikasi membuat akun bawaan:
+
+- **Email:** `pemilik@usaha.id`
+- **Kata sandi:** `relasy123`
+- **Workspace:** Usaha Saya
+
+Ganti kredensial ini sebelum menempatkan aplikasi di lingkungan yang dapat diakses publik.
+
+---
+
+## Pengujian
+
+```bash
+npm test          # Vitest: unit dan integrasi
+npm run test:e2e  # Playwright: desktop Chromium dan mobile Chrome
+npx tsc --noEmit  # Pemeriksaan tipe
+```
+
+Suite end-to-end mencakup alur pelanggan, pipeline, follow-up, dashboard, impor dan ekspor CSV, navigasi, mode gelap, serta pemeriksaan aksesibilitas termasuk larangan overflow horizontal dan target sentuh minimal 44 piksel.
+
+> **Tips:** jalankan E2E terhadap build produksi (`npm run build && npm start`). Pada mode pengembangan, kompilasi rute berjalan sesuai permintaan dan dapat melewati batas waktu asersi pengujian.
+
+---
+
+## Struktur proyek
 
 ```text
-├── src/
-│   ├── app/                      # Next.js App Router (pages & API routes)
-│   │   ├── api/                  # REST API endpoints (auth, customers, opportunities, followups, dashboard)
-│   │   ├── follow-up/            # Halaman manajemen tugas follow-up
-│   │   ├── login/                # Halaman autentikasi login
-│   │   ├── pelanggan/            # Halaman daftar dan rincian pelanggan (/pelanggan/[id])
-│   │   ├── pengaturan/           # Halaman pengaturan profil dan workspace
-│   │   ├── pipeline/             # Halaman pipeline penjualan (Kanban & tabel)
-│   │   └── ringkasan/            # Halaman dashboard ikhtisar bisnis
-│   ├── components/               # Komponen UI modular
-│   │   ├── layout/               # AppShell, NavLinks, header, drawer & bottom navigation
-│   │   └── ui/                   # Button, Input, Select, Dialog, Card, Badge, EmptyState, StatCard
-│   └── lib/                      # Utilitas & logika inti
-│       ├── auth/                 # Manajemen sesi, token HMAC, dan hash password
-│       ├── db/                   # Koneksi node:sqlite, skema tabel, dan repositories
-│       └── utils.ts              # Format Rupiah (IDR), format tanggal Indonesia, kalkulasi relative date
-├── tests-e2e/                    # Pengujian browser Playwright
-├── docs/                         # Dokumentasi arsitektur, PRD, dan panduan gaya bahasa
-└── ops/                          # Log status operasional (working-state.md)
+src/
+  app/
+    api/            # Endpoint REST: auth, customers, opportunities, followups, activities, dashboard
+    dashboard/      # Ringkasan bisnis
+    pelanggan/      # Daftar dan rincian pelanggan
+    pipeline/       # Papan dan tabel pipeline
+    follow-up/      # Manajemen tugas follow-up
+    pengaturan/     # Profil dan workspace
+    login/          # Autentikasi
+  components/
+    layout/         # AppShell, navigasi, drawer, bottom bar
+    ui/             # Button, Input, Select, Dialog, Card, Badge, dan mark ikon kustom
+  lib/
+    auth/           # Sesi HMAC dan hashing kata sandi
+    db/             # Koneksi SQLite, skema, dan repository
+tests-e2e/          # Pengujian browser Playwright
+docs/               # Dokumen produk, desain, dan panduan gaya
 ```
+
+---
+
+## Keputusan desain
+
+Beberapa hal yang sengaja dipilih dan sengaja dihindari:
+
+- **Ikatan warna yang tegas.** Ink `#252927`, Warm White `#F7F6F1`, Indigo `#635BCE`, Soft Indigo `#E9E8FC`. Warna status hanya dipakai untuk keadaan nyata, bukan hiasan.
+- **Batas tipis di atas bayangan.** Permukaan dibedakan dengan garis 1 piksel, bukan tumpukan bayangan.
+- **Ikon geometris buatan sendiri.** Seluruh glyph digambar pada grid 24 piksel dengan stroke 1,5 agar menyatu dengan tipografi sistem, bukan terbaca sebagai ikon pustaka.
+- **Animasi untuk orientasi, bukan tontonan.** Transisi 180 sampai 200 milidetik, dan seluruhnya berhenti ketika pengguna memilih mengurangi gerakan.
+- **Tanpa metrik karangan.** Tidak ada grafik pengisi, lencana palsu, atau notifikasi hiasan. Setiap elemen harus punya alasan yang bisa dijelaskan.
+
+---
+
+## Lisensi
+
+Kode dalam repositori ini disediakan untuk **purpose demonstrasi dan peninjauan**. Lihat [LICENSE](LICENSE).
+
+---
+
+## Membeli source code
+
+Repositori ini adalah **versi demo** yang dibuka untuk dibaca dan dinilai. Ia menunjukkan bagaimana Relasy dibangun, tetapi **tidak memberi Anda hak untuk memakainya secara komersial**. Lihat [LICENSE](LICENSE).
+
+Jika Anda ingin **menjalankan, mengubah, mengganti merek, dan memasang Relasy untuk bisnis Anda sendiri atau untuk klien**, lisensi komersial tersedia.
+
+**Yang Anda dapatkan dengan lisensi komersial**
+
+- Hak pakai penuh atas source code, termasuk untuk pekerjaan berbayar dan proyek klien.
+- Versi lengkap beserta riwayat pengembangan dan pembaruan.
+- Skema database SQLite, lapisan repository, dan seluruh komponen UI termasuk set ikon kustom.
+- Suite pengujian Vitest dan Playwright sebagai jaring pengaman saat Anda mengubah kode.
+- Dokumen produk, desain, dan panduan gaya bahasa.
+- Pendampingan penyesuaian awal dan bantuan pemasangan.
+
+**Cocok untuk**
+
+- Pemilik usaha yang ingin CRM sendiri tanpa biaya langganan bulanan.
+- Pengembang atau agensi yang butuh fondasi CRM siap pakai untuk proyek klien.
+- Siapa pun yang ingin belajar bagaimana aplikasi CRM Next.js yang rapi disusun dari nol.
+
+**Tertarik?** Hubungi pemilik repositori melalui [GitHub](https://github.com/adlnfkhrzmn) atau buka [issue](https://github.com/adlnfkhrzmn/relasy/issues) untuk menanyakan ketersediaan, harga, dan cakupan lisensi.
+
+> Harga dan cakupan disepakati langsung. Tidak ada langganan wajib, tidak ada biaya tersembunyi.
+
+---
+
+<p align="center">
+  <strong>Relasy</strong> dibangun dengan Next.js, React, dan SQLite.<br />
+  Jika proyek ini membantu Anda memahami cara membangun CRM yang rapi, pertimbangkan lisensi komersialnya.
+</p>

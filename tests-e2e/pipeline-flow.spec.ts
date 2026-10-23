@@ -51,7 +51,7 @@ test.describe("Sales Pipeline & Opportunities User Flows (Phase 5)", () => {
     await expect(page.getByText("Dihubungi").first()).toBeVisible();
 
     // Switch back to Board view
-    await page.getByTitle("Tampilan Papan Kanban").click();
+    await page.getByTitle("Tampilan Pipeline").click();
     await expect(page.getByText(oppTitle).first()).toBeVisible();
   });
 });

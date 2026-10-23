@@ -1,39 +1,47 @@
-# Dependencies
+# Dependency directories
 node_modules/
-/.pnp
+.pnp
 .pnp.js
 
 # Testing
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # Next.js
 /.next/
 /out/
-
-# Production
-build
-
-# Misc
-.DS_Store
-*.pem
-
-# Local env files
-.env*.local
-.env
-
-# Vercel
-.vercel
-
-# TypeScript
+/build
 *.tsbuildinfo
 next-env.d.ts
 
-# Relasy Local Database
-/data/*.db
-/data/*.db-journal
-/data/*.db-wal
-/data/*.db-shm
+# Local environment files
+.env
+.env*.local
 
-# Playwright
-/test-results/
-/playwright-report/
+# Local database and its WAL sidecars
+/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Local dev server logs
+.devlog.txt
+.deverr.txt
+*.log
+
+# Agent and editor tooling
+/.agents/
+/.claude/
+/.cursor/
+/.vscode/
+/.idea/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~

@@ -83,3 +83,21 @@ export function formatRelativeDueDate(dateInput: string | Date | null | undefine
     return { label: `${diffDays} hari lagi`, isOverdue: false, isToday: false };
   }
 }
+
+/**
+ * Ambil pesan kesalahan pertama dari hasil validasi Zod yang gagal.
+ * Zod memakai pesan bawaan berbahasa Inggris untuk aturan yang tidak diberi
+ * pesan khusus (mis. "Required"), sehingga pesan seperti itu diganti dengan
+ * kalimat cadangan agar seluruh teks yang tampil tetap berbahasa Indonesia.
+ */
+export function firstIssueMessage(
+  issues: { message?: string }[] | undefined,
+  fallback: string
+): string {
+  const raw = issues?.[0]?.message?.trim();
+  if (!raw) return fallback;
+  if (/^(Required|Invalid input|Invalid|Expected |Too small|Too big|String must|Number must|Unrecognized)/i.test(raw)) {
+    return fallback;
+  }
+  return raw;
+}

@@ -7,24 +7,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
+import { Dialog } from "@/components/ui/dialog";
+import { LuxuryNotification } from "@/components/ui/luxury-toast";
 import {
-  Users,
-  Kanban,
-  CalendarCheck2,
-  AlertCircle,
-  Plus,
-  Clock,
-  ArrowRight,
-  Phone,
-  FileText,
-  MessageSquare,
-  Check,
-  CheckCircle2,
-  User,
-  TrendingUp,
-} from "lucide-react";
+  MarkContacts,
+  MarkFunnel,
+  MarkSchedule,
+  MarkAlert,
+  MarkPlus,
+  MarkClock,
+  MarkArrowRight,
+  MarkPhone,
+  MarkNote,
+  MarkMessage,
+  MarkCheck,
+  MarkTrend,
+  MarkCheckCircle,
+  MarkLedger,
+} from "@/components/ui/marks";
 import Link from "next/link";
-import { formatCurrency, formatDate, formatRelativeDueDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface DashboardMetrics {
   totalCustomers: number;
@@ -74,6 +76,8 @@ export default function RingkasanPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [actionFeedback, setActionFeedback] = useState("");
+  const [confirmCompleteTask, setConfirmCompleteTask] = useState<FollowupTask | null>(null);
+  const [isCompletingTask, setIsCompletingTask] = useState(false);
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -97,98 +101,112 @@ export default function RingkasanPage() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  const handleToggleTaskStatus = async (taskId: string, title: string) => {
+  const executeCompleteTask = async (task: FollowupTask) => {
+    if (!task?.id) return;
+    setIsCompletingTask(true);
     try {
-      const res = await fetch(`/api/followups/${taskId}`, {
+      const res = await fetch(`/api/followups/${encodeURIComponent(task.id)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "toggle_status" }),
       });
-      if (!res.ok) throw new Error("Gagal memperbarui status tugas.");
-      setActionFeedback(`Tugas "${title}" berhasil diselesaikan.`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Gagal memperbarui status tugas.");
+      setConfirmCompleteTask(null);
+      setTasksToday((prev) => prev.filter((item) => item.id !== task.id));
+      setActionFeedback(
+        `Tugas "${task.title}" ditandai selesai. Catatan dan riwayatnya tetap tersimpan di menu Follow-up (tab Selesai).`
+      );
       loadDashboardData();
-      setTimeout(() => setActionFeedback(""), 3000);
+      setTimeout(() => setActionFeedback(""), 4000);
     } catch (err: any) {
       setErrorMessage(err.message);
+    } finally {
+      setIsCompletingTask(false);
     }
   };
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case "telepon":
-        return Phone;
+        return MarkPhone;
       case "pesan_manual":
-        return MessageSquare;
+        return MarkMessage;
       case "pertemuan":
-        return Users;
+        return MarkContacts;
       default:
-        return FileText;
+        return MarkNote;
+    }
+  };
+
+  const getActivityTypeLabel = (type: string) => {
+    switch (type) {
+      case "telepon":
+        return "Telepon";
+      case "pesan_manual":
+        return "Pesan Manual";
+      case "pertemuan":
+        return "Pertemuan";
+      case "catatan":
+        return "Catatan";
+      default:
+        return "Aktivitas";
     }
   };
 
   return (
     <AppShell>
       <div className="space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+        <div className="rounded-2xl bg-[#FFFFFF] border border-[#E5E4DE] p-5 sm:p-6 shadow-2xs flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#252927] tracking-tight">
               Ringkasan Bisnis
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Pantau peluang penjualan, jadwal follow-up, dan aktivitas pelanggan terkini.
+            <p className="text-xs sm:text-sm text-[#6F716D]">
+              Pantau perkembangan peluang penjualan, jadwal follow-up hari ini, dan catatan komunikasi pelanggan terbaru.
             </p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap shrink-0">
             <Link href="/pelanggan">
               <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-                <Users className="w-3.5 h-3.5" />
+                <MarkContacts className="w-3.5 h-3.5" />
                 <span>Pelanggan</span>
               </Button>
             </Link>
             <Link href="/pipeline">
               <Button size="sm" variant="outline" className="gap-1.5 text-xs">
-                <Kanban className="w-3.5 h-3.5" />
+                <MarkFunnel className="w-3.5 h-3.5" />
                 <span>Pipeline</span>
               </Button>
             </Link>
             <Link href="/follow-up">
               <Button size="sm" className="gap-1.5 text-xs">
-                <Plus className="w-4 h-4" />
+                <MarkPlus className="w-4 h-4" />
                 <span>Jadwalkan follow-up</span>
               </Button>
             </Link>
           </div>
         </div>
 
-        {/* Action feedback */}
+        {/* Notifications */}
         {actionFeedback && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm rounded-md flex items-center justify-between">
-            <span>{actionFeedback}</span>
-            <button
-              type="button"
-              onClick={() => setActionFeedback("")}
-              className="text-emerald-700 font-bold ml-2 cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
+          <LuxuryNotification
+            variant="success"
+            title="Pembaruan Tugas"
+            message={actionFeedback}
+            onClose={() => setActionFeedback("")}
+          />
         )}
 
         {errorMessage && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-800 text-xs sm:text-sm rounded-md flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-            <button
-              type="button"
-              onClick={loadDashboardData}
-              className="text-xs font-semibold text-red-700 underline cursor-pointer"
-            >
-              Coba lagi
-            </button>
-          </div>
+          <LuxuryNotification
+            variant="error"
+            title="Kendala Koneksi Data"
+            message={errorMessage}
+            onClose={() => setErrorMessage("")}
+            actionLabel="Coba lagi"
+            onAction={loadDashboardData}
+          />
         )}
 
         {/* Metric Cards Grid */}
@@ -197,7 +215,7 @@ export default function RingkasanPage() {
             title="Pelanggan Aktif"
             value={metrics.totalCustomers}
             description="Total pelanggan terdaftar"
-            icon={Users}
+            icon={MarkContacts}
             href="/pelanggan"
           />
           <StatCard
@@ -208,14 +226,14 @@ export default function RingkasanPage() {
                 ? `Estimasi ${formatCurrency(metrics.pipelineValue)}`
                 : "Belum ada peluang terbuka"
             }
-            icon={Kanban}
+            icon={MarkFunnel}
             href="/pipeline"
           />
           <StatCard
             title="Follow-up Hari Ini"
             value={metrics.tasksToday}
             description="Perlu dihubungi hari ini"
-            icon={CalendarCheck2}
+            icon={MarkSchedule}
             href="/follow-up?tab=today"
             variant={metrics.tasksToday > 0 ? "warning" : "default"}
           />
@@ -223,61 +241,104 @@ export default function RingkasanPage() {
             title="Tugas Terlambat"
             value={metrics.tasksOverdue}
             description="Melewati tenggat waktu"
-            icon={AlertCircle}
+            icon={MarkAlert}
             href="/follow-up?tab=overdue"
             variant={metrics.tasksOverdue > 0 ? "danger" : "default"}
           />
         </div>
 
-        {/* Highlight Won Opportunities if any */}
-        {metrics.wonOpportunitiesCount > 0 && (
-          <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-4 h-4 text-emerald-700" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-emerald-950">
-                  {metrics.wonOpportunitiesCount} Peluang Penjualan Berhasil Dimenangkan
-                </p>
-                <p className="text-xs text-emerald-700 mt-0.5">
-                  Total nilai transaksi tercapai:{" "}
-                  <span className="font-bold">{formatCurrency(metrics.wonOpportunitiesValue)}</span>
-                </p>
-              </div>
+        {/* Secondary Financial & Completion Ledger Strip */}
+        <div className="rounded-xl bg-[#FFFFFF] border border-[#E5E4DE] p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E5E4DE] shadow-2xs">
+          <div className="flex items-center justify-between sm:pr-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6F716D]">
+                Nilai Pipeline Aktif
+              </p>
+              <p className="text-base sm:text-lg font-bold text-[#252927] tabular-nums mt-0.5">
+                {formatCurrency(metrics.pipelineValue)}
+              </p>
             </div>
             <Link
               href="/pipeline"
-              className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 hover:underline flex items-center gap-1 self-start sm:self-center"
+              className="text-xs font-semibold text-[#635BCE] hover:underline no-underline flex items-center gap-1"
             >
-              Lihat di pipeline <ArrowRight className="w-3.5 h-3.5" />
+              <span>Pipeline</span>
+              <MarkArrowRight className="w-3 h-3" />
             </Link>
           </div>
-        )}
+
+          <div className="pt-3 sm:pt-0 sm:px-4 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6F716D]">
+                Transaksi Berhasil ({metrics.wonOpportunitiesCount})
+              </p>
+              <p className="text-base sm:text-lg font-bold text-emerald-700 tabular-nums mt-0.5">
+                {formatCurrency(metrics.wonOpportunitiesValue)}
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0">
+              <MarkTrend className="w-4 h-4 text-emerald-700" />
+            </div>
+          </div>
+
+          <div className="pt-3 sm:pt-0 sm:pl-4 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6F716D]">
+                Follow-up Diselesaikan
+              </p>
+              <p className="text-base sm:text-lg font-bold text-[#252927] tabular-nums mt-0.5">
+                {metrics.tasksCompleted} Tugas
+              </p>
+            </div>
+            <Link
+              href="/follow-up?tab=completed"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#635BCE] hover:underline no-underline"
+            >
+              <MarkCheckCircle className="w-3.5 h-3.5" />
+              <span>Riwayat</span>
+            </Link>
+          </div>
+        </div>
 
         {/* Two-column overview content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Follow-up Hari Ini Section */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <Card className="rounded-xl overflow-hidden shadow-2xs">
+            <CardHeader className="flex flex-row items-center justify-between pb-3.5 border-b border-[#E5E4DE]">
               <div>
-                <CardTitle className="text-base font-semibold text-slate-900">
+                <CardTitle className="text-base font-bold text-[#252927]">
                   Follow-up Hari Ini
                 </CardTitle>
-                <p className="text-xs text-slate-500 mt-0.5">Tugas follow-up dengan tenggat hari ini</p>
+                <p className="text-xs text-[#6F716D] mt-0.5">
+                  Daftar pelanggan yang terjadwal untuk dihubungi hari ini
+                </p>
               </div>
               <Link href="/follow-up?tab=today">
                 <Button variant="ghost" size="sm" className="text-xs gap-1">
-                  Lihat semua <ArrowRight className="w-3.5 h-3.5" />
+                  Lihat semua <MarkArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </Link>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {isLoading ? (
-                <div className="p-8 text-center text-xs text-slate-400">Memuat tugas hari ini...</div>
+                <div
+                  aria-busy="true"
+                  aria-label="Memuat tugas hari ini"
+                  className="space-y-3 py-2"
+                >
+                  {[1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="h-12 rounded-lg bg-[#F7F6F1] animate-pulse"
+                    />
+                  ))}
+                  <p className="text-center text-xs text-[#A8AAA4]">
+                    Memuat tugas hari ini...
+                  </p>
+                </div>
               ) : tasksToday.length === 0 ? (
                 <EmptyState
-                  icon={CalendarCheck2}
+                  icon={MarkSchedule}
                   title="Tidak ada follow-up hari ini"
                   description="Semua jadwal follow-up untuk hari ini sudah selesai atau belum ada jadwal baru."
                   action={
@@ -289,67 +350,100 @@ export default function RingkasanPage() {
                   }
                 />
               ) : (
-                <div className="divide-y divide-slate-100 -mx-4 -mb-4">
-                  {tasksToday.map((task) => (
-                    <div
-                      key={task.id}
-                      className="p-3.5 px-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleTaskStatus(task.id, task.title)}
-                          className="w-5 h-5 rounded border border-slate-300 hover:border-blue-600 bg-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
-                          title="Tandai selesai"
-                          aria-label={`Tandai selesai tugas ${task.title}`}
-                        >
-                          <Check className="w-3 h-3 text-transparent hover:text-slate-400" />
-                        </button>
-                        <div className="min-w-0">
-                          <p className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
-                            {task.title}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
-                            <Link
-                              href={`/pelanggan/${task.customer_id}`}
-                              className="text-blue-700 hover:underline truncate"
-                            >
-                              {task.customer_name}
-                            </Link>
+                <div className="divide-y divide-[#E5E4DE] -mx-4 -my-4">
+                  {tasksToday.map((task) => {
+                    const isPendingConfirm = confirmCompleteTask?.id === task.id;
+                    return (
+                      <div
+                        key={task.id}
+                        className="p-4 hover:bg-[#F7F6F1] transition-colors flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={false}
+                            onClick={() => setConfirmCompleteTask(task)}
+                            className="followup-checkbox group/cb w-5 h-5 rounded-md flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                            title="Tandai selesai"
+                            aria-label={`Tandai selesai tugas ${task.title}`}
+                          >
+                            <MarkCheck
+                              className={`w-3.5 h-3.5 text-[#635BCE] transition-opacity ${
+                                isPendingConfirm
+                                  ? "opacity-100"
+                                  : "opacity-0 group-hover/cb:opacity-70"
+                              }`}
+                            />
+                          </button>
+                          <div className="min-w-0">
+                            <p className="text-xs sm:text-sm font-semibold text-[#252927] truncate">
+                              {task.title}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[#6F716D]">
+                              <Link
+                                href={`/pelanggan/${task.customer_id}`}
+                                className="font-medium text-[#635BCE] hover:underline truncate"
+                              >
+                                {task.customer_name}
+                              </Link>
+                            </div>
                           </div>
                         </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          <Link
+                            href="/follow-up?tab=today"
+                            className="text-xs font-semibold text-[#252927] bg-[#E9E8FC] hover:bg-[#DDD9F9] border border-[#D5D3F5] px-2.5 py-1 rounded-md no-underline transition-colors"
+                          >
+                            Follow-up
+                          </Link>
+                          <Badge variant="warning">Hari ini</Badge>
+                        </div>
                       </div>
-                      <div className="shrink-0">
-                        <Badge variant="warning">Hari ini</Badge>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
 
           {/* Aktivitas Terbaru Section */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
+          <Card className="rounded-xl overflow-hidden shadow-2xs">
+            <CardHeader className="flex flex-row items-center justify-between pb-3.5 border-b border-[#E5E4DE]">
               <div>
-                <CardTitle className="text-base font-semibold text-slate-900">
+                <CardTitle className="text-base font-bold text-[#252927]">
                   Riwayat Aktivitas Terkini
                 </CardTitle>
-                <p className="text-xs text-slate-500 mt-0.5">Catatan interaksi terbaru dengan pelanggan</p>
+                <p className="text-xs text-[#6F716D] mt-0.5">
+                  Catatan komunikasi dan pertemuan terbaru dengan pelanggan
+                </p>
               </div>
               <Link href="/pelanggan">
                 <Button variant="ghost" size="sm" className="text-xs gap-1">
-                  Semua pelanggan <ArrowRight className="w-3.5 h-3.5" />
+                  Semua pelanggan <MarkArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </Link>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {isLoading ? (
-                <div className="p-8 text-center text-xs text-slate-400">Memuat riwayat aktivitas...</div>
+                <div
+                  aria-busy="true"
+                  aria-label="Memuat riwayat aktivitas"
+                  className="space-y-3 py-2"
+                >
+                  {[1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="h-12 rounded-lg bg-[#F7F6F1] animate-pulse"
+                    />
+                  ))}
+                  <p className="text-center text-xs text-[#A8AAA4]">
+                    Memuat riwayat aktivitas...
+                  </p>
+                </div>
               ) : recentActivities.length === 0 ? (
                 <EmptyState
-                  icon={Clock}
+                  icon={MarkClock}
                   title="Belum ada riwayat aktivitas"
                   description="Catatan interaksi, panggilan telepon, atau pertemuan dengan pelanggan akan muncul di sini."
                   action={
@@ -361,25 +455,30 @@ export default function RingkasanPage() {
                   }
                 />
               ) : (
-                <div className="divide-y divide-slate-100 -mx-4 -mb-4">
+                <div className="divide-y divide-[#E5E4DE] -mx-4 -my-4">
                   {recentActivities.map((act) => {
                     const IconComponent = getActivityIcon(act.type);
                     return (
                       <div
                         key={act.id}
-                        className="p-3.5 px-4 hover:bg-slate-50/80 transition-colors flex items-start gap-3"
+                        className="p-4 hover:bg-[#F7F6F1] transition-colors flex items-start gap-3.5"
                       >
-                        <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
-                          <IconComponent className="w-3.5 h-3.5 text-slate-600" />
+                        <div className="w-8 h-8 rounded-lg bg-[#E9E8FC] border border-[#D5D3F5] flex items-center justify-center shrink-0 mt-0.5">
+                          <IconComponent className="w-4 h-4 text-[#635BCE]" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs sm:text-sm font-semibold text-slate-900">
-                            {act.title}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 flex-wrap">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs sm:text-sm font-semibold text-[#252927] truncate">
+                              {act.title}
+                            </p>
+                            <span className="text-[11px] font-medium text-[#6F716D] bg-[#F7F6F1] border border-[#E5E4DE] px-2 py-0.5 rounded shrink-0">
+                              {getActivityTypeLabel(act.type)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 text-xs text-[#6F716D] flex-wrap">
                             <Link
                               href={`/pelanggan/${act.customer_id}`}
-                              className="font-medium text-blue-700 hover:underline"
+                              className="font-medium text-[#635BCE] hover:underline"
                             >
                               {act.customer_name}
                             </Link>
@@ -387,7 +486,7 @@ export default function RingkasanPage() {
                             <span>{formatDate(act.happened_at)}</span>
                           </div>
                           {act.body && (
-                            <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+                            <p className="text-xs text-[#6F716D] mt-1.5 line-clamp-2 leading-relaxed">
                               {act.body}
                             </p>
                           )}
@@ -400,6 +499,55 @@ export default function RingkasanPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Modal Konfirmasi Penyelesaian Follow-up */}
+        <Dialog
+          isOpen={!!confirmCompleteTask}
+          onClose={() => setConfirmCompleteTask(null)}
+          title="Selesaikan Tugas Follow-up?"
+          description="Pastikan tindak lanjut kepada pelanggan ini sudah dilakukan sebelum menandai tugas sebagai selesai."
+        >
+          {confirmCompleteTask && (
+            <div className="space-y-4">
+              <div className="p-3.5 rounded-lg bg-[#F7F6F1] border border-[#E5E4DE] space-y-1">
+                <p className="text-sm font-semibold text-[#252927]">
+                  {confirmCompleteTask.title}
+                </p>
+                <p className="text-xs text-[#6F716D]">
+                  Pelanggan:{" "}
+                  <strong className="font-medium text-[#252927]">
+                    {confirmCompleteTask.customer_name}
+                  </strong>
+                </p>
+              </div>
+
+              <p className="text-xs text-[#6F716D] leading-relaxed">
+                Tugas ini akan dipindahkan ke tab{" "}
+                <strong className="text-[#252927]">Selesai</strong> pada menu
+                Follow-up dan riwayatnya tetap tersimpan.
+              </p>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#E5E4DE]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmCompleteTask(null)}
+                >
+                  Batalkan
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  isLoading={isCompletingTask}
+                  onClick={() => executeCompleteTask(confirmCompleteTask)}
+                >
+                  Tandai Selesai
+                </Button>
+              </div>
+            </div>
+          )}
+        </Dialog>
       </div>
     </AppShell>
   );
