@@ -1,4 +1,4 @@
-import { getDatabase } from "../client";
+import { getDriver } from "../client";
 import { ActivityType } from "@/lib/constants";
 import crypto from "crypto";
 
@@ -25,97 +25,97 @@ export interface CreateActivityInput {
   happenedAt?: string;
 }
 
-export function createActivity(workspaceId: string, input: CreateActivityInput): ActivityRecord {
-  const db = getDatabase();
+export async function createActivity(
+  workspaceId: string,
+  input: CreateActivityInput
+): Promise<ActivityRecord> {
+  const db = getDriver();
   const id = `act_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
   const happenedAt = input.happenedAt || now;
 
-  const stmt = db.prepare(`
-    INSERT INTO activities (
-      id, workspace_id, customer_id, opportunity_id, type, title, body, happened_at, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+  const title = input.title.trim();
+  const body = input.body ? input.body.trim() : null;
+  const opportunityId = input.opportunityId || null;
 
-  stmt.run(
-    id,
-    workspaceId,
-    input.customerId,
-    input.opportunityId || null,
-    input.type,
-    input.title.trim(),
-    input.body ? input.body.trim() : null,
-    happenedAt,
-    now
+  await db.query(
+    `INSERT INTO activities (
+       id, workspace_id, customer_id, opportunity_id, type, title, body, happened_at, created_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [id, workspaceId, input.customerId, opportunityId, input.type, title, body, happenedAt, now]
   );
 
   return {
     id,
     workspace_id: workspaceId,
     customer_id: input.customerId,
-    opportunity_id: input.opportunityId || null,
+    opportunity_id: opportunityId,
     type: input.type,
-    title: input.title.trim(),
-    body: input.body ? input.body.trim() : null,
+    title,
+    body,
     happened_at: happenedAt,
     created_at: now,
   };
 }
 
-export function getActivities(
+export async function getActivities(
   workspaceId: string,
   options: {
     customerId?: string;
     opportunityId?: string;
     limit?: number;
   } = {}
-): ActivityRecord[] {
-  const db = getDatabase();
+): Promise<ActivityRecord[]> {
+  const db = getDriver();
   let query = `
-    SELECT 
+    SELECT
       a.*,
       c.name as customer_name,
       o.title as opportunity_title
     FROM activities a
     JOIN customers c ON a.customer_id = c.id
     LEFT JOIN opportunities o ON a.opportunity_id = o.id
-    WHERE a.workspace_id = ?
+    WHERE a.workspace_id = $1
   `;
   const params: any[] = [workspaceId];
 
   if (options.customerId) {
-    query += " AND a.customer_id = ?";
     params.push(options.customerId);
+    query += ` AND a.customer_id = $${params.length}`;
   }
 
   if (options.opportunityId) {
-    query += " AND a.opportunity_id = ?";
     params.push(options.opportunityId);
+    query += ` AND a.opportunity_id = $${params.length}`;
   }
 
   query += " ORDER BY a.happened_at DESC, a.created_at DESC";
 
   if (options.limit) {
-    query += " LIMIT ?";
     params.push(options.limit);
+    query += ` LIMIT $${params.length}`;
   }
 
-  return (db.prepare(query).all(...params) as unknown) as ActivityRecord[];
+  return db.query<ActivityRecord>(query, params);
 }
 
-export function getActivityById(workspaceId: string, activityId: string): ActivityRecord | null {
-  const db = getDatabase();
-  const row = (db
-    .prepare(`
-      SELECT 
-        a.*,
-        c.name as customer_name,
-        o.title as opportunity_title
-      FROM activities a
-      JOIN customers c ON a.customer_id = c.id
-      LEFT JOIN opportunities o ON a.opportunity_id = o.id
-      WHERE a.id = ? AND a.workspace_id = ?
-    `)
-    .get(activityId, workspaceId) as unknown) as ActivityRecord | undefined;
-  return row || null;
+export async function getActivityById(
+  workspaceId: string,
+  activityId: string
+): Promise<ActivityRecord | null> {
+  const db = getDriver();
+  const rows = await db.query<ActivityRecord>(
+    `
+    SELECT
+      a.*,
+      c.name as customer_name,
+      o.title as opportunity_title
+    FROM activities a
+    JOIN customers c ON a.customer_id = c.id
+    LEFT JOIN opportunities o ON a.opportunity_id = o.id
+    WHERE a.id = $1 AND a.workspace_id = $2
+  `,
+    [activityId, workspaceId]
+  );
+  return rows[0] || null;
 }

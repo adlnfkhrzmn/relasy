@@ -19,8 +19,8 @@ export async function GET() {
     return NextResponse.json({ authenticated: false, user: null });
   }
 
-  const dbUser = getUserById(session.userId);
-  const workspace = getWorkspaceById(session.workspaceId);
+  const dbUser = await getUserById(session.userId);
+  const workspace = await getWorkspaceById(session.workspaceId);
 
   return NextResponse.json({
     authenticated: true,
@@ -46,18 +46,18 @@ export async function PATCH(request: Request) {
     const body = rawText.trim() ? JSON.parse(rawText) : {};
 
     if (typeof body.workspaceName === "string" && body.workspaceName.trim()) {
-      updateWorkspaceName(session.workspaceId, body.workspaceName.trim());
+      await updateWorkspaceName(session.workspaceId, body.workspaceName.trim());
     }
 
     if (body.name || body.email) {
-      updateUser(session.userId, {
+      await updateUser(session.userId, {
         name: typeof body.name === "string" ? body.name.trim() : undefined,
         email: typeof body.email === "string" ? body.email.trim() : undefined,
       });
     }
 
-    const updatedUser = getUserById(session.userId);
-    const updatedWs = getWorkspaceById(session.workspaceId);
+    const updatedUser = await getUserById(session.userId);
+    const updatedWs = await getWorkspaceById(session.workspaceId);
 
     const nextName = updatedUser?.name || body.name || session.name;
     const nextEmail = updatedUser?.email || body.email || session.email;

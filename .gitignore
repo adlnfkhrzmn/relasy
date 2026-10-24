@@ -28,6 +28,12 @@ next-env.d.ts
 *.db-wal
 *.db-shm
 
+# Data pelanggan asli: cadangan SQLite dan hasil ekspornya.
+# Keduanya berisi nama, telepon, dan email nyata, jadi tidak boleh masuk
+# repositori publik. Hasilkan ulang dengan: npm run db:seed
+/backup/
+/supabase/seed.sql
+
 # Local dev server logs
 .devlog.txt
 .deverr.txt

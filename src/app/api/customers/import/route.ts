@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     }
 
     const { duplicateStrategy, rows } = parsed.data;
-    const existingCustomers = getAllWorkspaceCustomers(workspaceId);
+    const existingCustomers = await getAllWorkspaceCustomers(workspaceId);
 
     const byId = new Map<string, string>();
     const byPhone = new Map<string, string>();
@@ -159,7 +159,7 @@ export async function POST(request: Request) {
 
       if (matchedId) {
         if (duplicateStrategy === "update") {
-          updateCustomer(workspaceId, matchedId, {
+          await updateCustomer(workspaceId, matchedId, {
             name,
             phone: phone || undefined,
             email: email || undefined,
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const created = createCustomer(workspaceId, {
+      const created = await createCustomer(workspaceId, {
         name,
         phone,
         email,

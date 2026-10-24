@@ -31,8 +31,8 @@ export async function GET(request: Request) {
 
     const customers =
       scope === "all"
-        ? getAllWorkspaceCustomers(workspaceId)
-        : getCustomers(workspaceId, { search, filterArchived });
+        ? await getAllWorkspaceCustomers(workspaceId)
+        : await getCustomers(workspaceId, { search, filterArchived });
     return NextResponse.json({ success: true, data: customers });
   } catch (error) {
     console.error("GET /api/customers error:", error);
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const customer = createCustomer(workspaceId, {
+    const customer = await createCustomer(workspaceId, {
       name: parsed.data.name,
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,

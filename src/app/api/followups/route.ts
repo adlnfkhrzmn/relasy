@@ -28,13 +28,15 @@ export async function GET(request: Request) {
     const customerId = searchParams.get("customerId") || undefined;
     const referenceDate = searchParams.get("refDate") || undefined;
 
-    const followups = getFollowups(workspaceId, { tab, customerId, referenceDate });
+    const followups = await getFollowups(workspaceId, { tab, customerId, referenceDate });
 
     // Also get tab counts for live badges
-    const allToday = getFollowups(workspaceId, { tab: "today", customerId, referenceDate });
-    const allUpcoming = getFollowups(workspaceId, { tab: "upcoming", customerId, referenceDate });
-    const allOverdue = getFollowups(workspaceId, { tab: "overdue", customerId, referenceDate });
-    const allCompleted = getFollowups(workspaceId, { tab: "completed", customerId, referenceDate });
+    const [allToday, allUpcoming, allOverdue, allCompleted] = await Promise.all([
+      getFollowups(workspaceId, { tab: "today", customerId, referenceDate }),
+      getFollowups(workspaceId, { tab: "upcoming", customerId, referenceDate }),
+      getFollowups(workspaceId, { tab: "overdue", customerId, referenceDate }),
+      getFollowups(workspaceId, { tab: "completed", customerId, referenceDate }),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const customer = getCustomerById(workspaceId, parsed.data.customerId);
+    const customer = await getCustomerById(workspaceId, parsed.data.customerId);
     if (!customer) {
       return NextResponse.json(
         { message: "Pelanggan tidak valid atau tidak ditemukan." },
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const followup = createFollowup(workspaceId, {
+    const followup = await createFollowup(workspaceId, {
       customerId: parsed.data.customerId,
       opportunityId: parsed.data.opportunityId || null,
       title: parsed.data.title,

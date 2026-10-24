@@ -20,8 +20,8 @@ export async function GET(request: Request) {
 
     const records =
       scope === "all"
-        ? getAllWorkspaceCustomers(workspaceId)
-        : getCustomers(workspaceId, { search, filterArchived });
+        ? await getAllWorkspaceCustomers(workspaceId)
+        : await getCustomers(workspaceId, { search, filterArchived });
 
     const csvContent = serializeCustomersToCsv(records);
     const dateStamp = new Date().toISOString().split("T")[0];

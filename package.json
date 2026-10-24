@@ -9,7 +9,12 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:sql": "node scripts/generate-schema-sql.cjs",
+    "db:seed": "node scripts/export-sqlite-to-sql.cjs",
+    "db:verify": "node scripts/verify-schema.cjs",
+    "db:local": "node scripts/local-pg-server.cjs",
+    "smoke": "node scripts/smoke-test.cjs"
   },
   "dependencies": {
     "@paper-design/shaders-react": "^0.0.82",
@@ -18,12 +23,15 @@
     "framer-motion": "^14.6.0",
     "lucide-react": "^1.16.0",
     "next": "^15.2.4",
+    "postgres": "^3.4.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.5.0",
     "zod": "^3.25.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "@electric-sql/pglite-socket": "^0.2.14",
     "@playwright/test": "^1.58.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.13.10",

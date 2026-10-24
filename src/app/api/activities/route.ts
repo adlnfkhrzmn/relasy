@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     const opportunityId = searchParams.get("opportunityId") || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
 
-    const activities = getActivities(workspaceId, { customerId, opportunityId, limit });
+    const activities = await getActivities(workspaceId, { customerId, opportunityId, limit });
     return NextResponse.json({ success: true, data: activities });
   } catch (error) {
     console.error("GET /api/activities error:", error);
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     }
 
     // Verify customer exists in this workspace
-    const customer = getCustomerById(workspaceId, parsed.data.customerId);
+    const customer = await getCustomerById(workspaceId, parsed.data.customerId);
     if (!customer) {
       return NextResponse.json(
         { message: "Pelanggan tidak valid atau tidak ditemukan." },
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const activity = createActivity(workspaceId, {
+    const activity = await createActivity(workspaceId, {
       customerId: parsed.data.customerId,
       opportunityId: parsed.data.opportunityId || null,
       type: parsed.data.type,

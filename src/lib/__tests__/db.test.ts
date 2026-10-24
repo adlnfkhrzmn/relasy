@@ -1,57 +1,63 @@
-import { describe, it, expect } from "vitest";
-import { createTestDatabase } from "../db/client";
+import { describe, it, expect, beforeEach } from "vitest";
+import { setDriver, DbDriver } from "../db/client";
+import { createTestDatabase } from "../db/testing";
 
 describe("Database client & schema", () => {
-  it("initializes tables and handles customer insertion with workspace scope", () => {
-    const db = createTestDatabase();
+  let db: DbDriver;
 
-    // Insert workspace
-    const insertWs = db.prepare(
-      "INSERT INTO workspaces (id, name) VALUES (?, ?)"
+  beforeEach(async () => {
+    db = await createTestDatabase();
+    setDriver(db);
+  });
+
+  it("initializes tables and handles customer insertion with workspace scope", async () => {
+    await db.query("INSERT INTO workspaces (id, name) VALUES ($1, $2)", ["ws-1", "Toko Maju"]);
+
+    await db.query(
+      "INSERT INTO customers (id, workspace_id, name, phone, email) VALUES ($1, $2, $3, $4, $5)",
+      ["cust-1", "ws-1", "Budi Santoso", "081234567890", "budi@example.com"]
     );
-    insertWs.run("ws-1", "Toko Maju");
 
-    // Insert customer
-    const insertCust = db.prepare(
-      "INSERT INTO customers (id, workspace_id, name, phone, email) VALUES (?, ?, ?, ?, ?)"
-    );
-    insertCust.run("cust-1", "ws-1", "Budi Santoso", "081234567890", "budi@example.com");
-
-    const customers = db.prepare("SELECT * FROM customers WHERE workspace_id = ?").all("ws-1") as any[];
+    const customers = await db.query<any>("SELECT * FROM customers WHERE workspace_id = $1", [
+      "ws-1",
+    ]);
     expect(customers.length).toBe(1);
     expect(customers[0].name).toBe("Budi Santoso");
     expect(customers[0].workspace_id).toBe("ws-1");
   });
 
-  it("enforces foreign key constraints", () => {
-    const db = createTestDatabase();
-
-    // Trying to insert a customer with non-existent workspace must throw foreign key error
-    const insertCust = db.prepare(
-      "INSERT INTO customers (id, workspace_id, name) VALUES (?, ?, ?)"
-    );
-    expect(() => {
-      insertCust.run("cust-2", "non-existent-ws", "Dewi");
-    }).toThrow();
+  it("enforces foreign key constraints", async () => {
+    await expect(
+      db.query("INSERT INTO customers (id, workspace_id, name) VALUES ($1, $2, $3)", [
+        "cust-2",
+        "non-existent-ws",
+        "Dewi",
+      ])
+    ).rejects.toThrow();
   });
 
-  it("enforces pipeline stage check constraints", () => {
-    const db = createTestDatabase();
-    db.prepare("INSERT INTO workspaces (id, name) VALUES (?, ?)").run("ws-1", "Toko Maju");
-    db.prepare("INSERT INTO customers (id, workspace_id, name) VALUES (?, ?, ?)").run("cust-1", "ws-1", "Budi");
-
-    const insertOpp = db.prepare(
-      "INSERT INTO opportunities (id, workspace_id, customer_id, title, stage) VALUES (?, ?, ?, ?, ?)"
-    );
+  it("enforces pipeline stage check constraints", async () => {
+    await db.query("INSERT INTO workspaces (id, name) VALUES ($1, $2)", ["ws-1", "Toko Maju"]);
+    await db.query("INSERT INTO customers (id, workspace_id, name) VALUES ($1, $2, $3)", [
+      "cust-1",
+      "ws-1",
+      "Budi",
+    ]);
 
     // Valid stage
-    expect(() => {
-      insertOpp.run("opp-1", "ws-1", "cust-1", "Peluang Baru", "baru");
-    }).not.toThrow();
+    await expect(
+      db.query(
+        "INSERT INTO opportunities (id, workspace_id, customer_id, title, stage) VALUES ($1, $2, $3, $4, $5)",
+        ["opp-1", "ws-1", "cust-1", "Peluang Baru", "baru"]
+      )
+    ).resolves.toBeDefined();
 
     // Invalid stage must throw check constraint error
-    expect(() => {
-      insertOpp.run("opp-2", "ws-1", "cust-1", "Peluang Invalid", "invalid_stage");
-    }).toThrow();
+    await expect(
+      db.query(
+        "INSERT INTO opportunities (id, workspace_id, customer_id, title, stage) VALUES ($1, $2, $3, $4, $5)",
+        ["opp-2", "ws-1", "cust-1", "Peluang Invalid", "invalid_stage"]
+      )
+    ).rejects.toThrow();
   });
 });

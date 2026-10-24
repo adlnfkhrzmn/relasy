@@ -35,7 +35,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const customer = getCustomerById(workspaceId, id);
+    const customer = await getCustomerById(workspaceId, id);
     if (!customer) {
       return NextResponse.json(
         { message: "Pelanggan tidak ditemukan atau tidak memiliki hak akses." },
@@ -43,9 +43,11 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
-    const opportunities = getOpportunities(workspaceId, { customerId: id });
-    const followups = getFollowups(workspaceId, { customerId: id });
-    const activities = getActivities(workspaceId, { customerId: id });
+    const [opportunities, followups, activities] = await Promise.all([
+      getOpportunities(workspaceId, { customerId: id }),
+      getFollowups(workspaceId, { customerId: id }),
+      getActivities(workspaceId, { customerId: id }),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -85,7 +87,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     // Handle archive / restore action
     if (parsed.data.action === "archive") {
-      const archived = archiveCustomer(workspaceId, id);
+      const archived = await archiveCustomer(workspaceId, id);
       if (!archived) {
         return NextResponse.json({ message: "Gagal mengarsipkan pelanggan." }, { status: 404 });
       }
@@ -93,14 +95,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     if (parsed.data.action === "restore") {
-      const restored = restoreCustomer(workspaceId, id);
+      const restored = await restoreCustomer(workspaceId, id);
       if (!restored) {
         return NextResponse.json({ message: "Gagal memulihkan pelanggan." }, { status: 404 });
       }
       return NextResponse.json({ success: true, message: "Pelanggan berhasil dipulihkan." });
     }
 
-    const updated = updateCustomer(workspaceId, id, {
+    const updated = await updateCustomer(workspaceId, id, {
       name: parsed.data.name,
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,
@@ -133,7 +135,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const deleted = deleteCustomer(workspaceId, id);
+    const deleted = await deleteCustomer(workspaceId, id);
     if (!deleted) {
       return NextResponse.json(
         { message: "Pelanggan tidak ditemukan atau tidak dapat dihapus." },

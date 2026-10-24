@@ -20,7 +20,7 @@ export async function GET() {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const config = getFollowupTemplateConfig(workspaceId);
+    const config = await getFollowupTemplateConfig(workspaceId);
 
     return NextResponse.json({
       success: true,
@@ -66,7 +66,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    const updated = updateFollowupTemplateConfig(workspaceId, {
+    const updated = await updateFollowupTemplateConfig(workspaceId, {
       isEnabled: parsed.data.isEnabled,
       activePreset: parsed.data.activePreset,
       templateText: parsed.data.templateText,

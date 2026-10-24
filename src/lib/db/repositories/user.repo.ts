@@ -1,4 +1,4 @@
-import { getDatabase } from "../client";
+import { getDriver } from "../client";
 import crypto from "crypto";
 
 export interface UserRecord {
@@ -11,27 +11,28 @@ export interface UserRecord {
   updated_at: string;
 }
 
-export function createUser(data: {
+export async function createUser(data: {
   workspaceId: string;
   name: string;
   email: string;
   passwordHash: string;
-}): UserRecord {
-  const db = getDatabase();
+}): Promise<UserRecord> {
+  const db = getDriver();
   const id = `usr_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
   const normalizedEmail = data.email.trim().toLowerCase();
+  const name = data.name.trim();
 
-  const stmt = db.prepare(`
-    INSERT INTO users (id, workspace_id, name, email, password_hash, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(id, data.workspaceId, data.name.trim(), normalizedEmail, data.passwordHash, now, now);
+  await db.query(
+    `INSERT INTO users (id, workspace_id, name, email, password_hash, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, data.workspaceId, name, normalizedEmail, data.passwordHash, now, now]
+  );
 
   return {
     id,
     workspace_id: data.workspaceId,
-    name: data.name.trim(),
+    name,
     email: normalizedEmail,
     password_hash: data.passwordHash,
     created_at: now,
@@ -39,39 +40,42 @@ export function createUser(data: {
   };
 }
 
-export function getUserByEmail(email: string): UserRecord | null {
-  const db = getDatabase();
+export async function getUserByEmail(email: string): Promise<UserRecord | null> {
+  const db = getDriver();
   const normalizedEmail = email.trim().toLowerCase();
-  const row = (db.prepare("SELECT * FROM users WHERE email = ?").get(normalizedEmail) as unknown) as
-    | UserRecord
-    | undefined;
-  return row || null;
+  const rows = await db.query<UserRecord>("SELECT * FROM users WHERE email = $1", [normalizedEmail]);
+  return rows[0] || null;
 }
 
-export function getUserById(id: string): UserRecord | null {
-  const db = getDatabase();
-  const row = (db.prepare("SELECT * FROM users WHERE id = ?").get(id) as unknown) as UserRecord | undefined;
-  return row || null;
+export async function getUserById(id: string): Promise<UserRecord | null> {
+  const db = getDriver();
+  const rows = await db.query<UserRecord>("SELECT * FROM users WHERE id = $1", [id]);
+  return rows[0] || null;
 }
 
-export function updateUser(id: string, data: { name?: string; email?: string }): boolean {
-  const db = getDatabase();
+export async function updateUser(
+  id: string,
+  data: { name?: string; email?: string }
+): Promise<boolean> {
+  const db = getDriver();
   const now = new Date().toISOString();
-  const updates: string[] = ["updated_at = ?"];
+  const updates: string[] = ["updated_at = $1"];
   const params: any[] = [now];
 
   if (data.name) {
-    updates.push("name = ?");
     params.push(data.name.trim());
+    updates.push(`name = $${params.length}`);
   }
 
   if (data.email) {
-    updates.push("email = ?");
     params.push(data.email.trim().toLowerCase());
+    updates.push(`email = $${params.length}`);
   }
 
   params.push(id);
-  const stmt = db.prepare(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`);
-  const result = stmt.run(...params) as any;
-  return (result?.changes || 0) > 0;
+  const affected = await db.execute(
+    `UPDATE users SET ${updates.join(", ")} WHERE id = $${params.length}`,
+    params
+  );
+  return affected > 0;
 }

@@ -15,6 +15,7 @@
 - [Tangkapan layar](#tangkapan-layar)
 - [Teknologi](#teknologi)
 - [Menjalankan secara lokal](#menjalankan-secara-lokal)
+- [Deploy ke Vercel](#deploy-ke-vercel)
 - [Akun demo](#akun-demo)
 - [Pengujian](#pengujian)
 - [Struktur proyek](#struktur-proyek)
@@ -35,7 +36,7 @@ Relasy menjawab ketiganya di satu layar, dengan bahasa Indonesia yang wajar dan 
 
 **Prinsip yang dipegang:**
 
-- **Data milik Anda.** Database SQLite lokal di mesin Anda sendiri, tanpa layanan pihak ketiga.
+- **Data milik Anda.** Database PostgreSQL milik Anda sendiri, tanpa layanan perantara yang menyimpan data pelanggan.
 - **Jujur pada keadaan.** Angka di dashboard berasal dari data nyata. Kondisi kosong menampilkan langkah berikutnya, bukan angka palsu.
 - **Cepat dipakai.** Tanpa onboarding berlapis, tanpa konfigurasi wajib.
 
@@ -106,13 +107,13 @@ Dashboard yang menempatkan pekerjaan penjualan di depan, bukan dinding kartu KPI
 | --- | --- |
 | Framework | Next.js 15 (App Router), React 19, TypeScript |
 | Styling | Tailwind CSS dengan token warna eksplisit |
-| Database | SQLite lokal lewat `node:sqlite` (`DatabaseSync`, WAL, foreign keys) |
+| Database | PostgreSQL (Supabase), driver `postgres` |
 | Autentikasi | Sesi HMAC-SHA256, kata sandi `bcryptjs` |
 | Validasi | `zod` di sisi server |
 | Animasi | Framer Motion, menghormati `prefers-reduced-motion` |
 | Pengujian | Vitest untuk unit dan integrasi, Playwright untuk end-to-end |
 
-Tidak ada layanan eksternal, tidak ada API key pihak ketiga, tidak ada telemetri.
+Tidak ada layanan eksternal selain database PostgreSQL pilihan Anda. Tidak ada API key pihak ketiga, tidak ada telemetri.
 
 ---
 
@@ -120,8 +121,9 @@ Tidak ada layanan eksternal, tidak ada API key pihak ketiga, tidak ada telemetri
 
 ### Persyaratan
 
-- Node.js 20 atau lebih baru. `node:sqlite` memerlukan Node 22+ untuk build produksi yang stabil.
+- Node.js 20 atau lebih baru.
 - npm 10 atau lebih baru.
+- Database PostgreSQL. Cara paling cepat adalah project [Supabase](https://supabase.com) gratis.
 
 ### Langkah
 
@@ -132,11 +134,28 @@ npm install
 # 2. Siapkan environment
 cp .env.example .env.local
 
-# 3. Jalankan server pengembangan
+# 3. Buat tabel: buka Supabase > SQL Editor, tempel isi supabase/schema.sql, klik Run
+#    (langkah ini opsional; aplikasi juga bisa membuat tabelnya sendiri)
+
+# 4. Isi DATABASE_URL di .env.local dengan connection string Transaction pooler Supabase
+
+# 5. Jalankan server pengembangan
 npm run dev
 ```
 
 Buka `http://localhost:3005`.
+
+Ingin mencoba tanpa akun Supabase? Jalankan PostgreSQL lokal in-process lebih
+dulu, lalu arahkan `DATABASE_URL` ke sana:
+
+```bash
+# Terminal 1
+npm run db:local
+
+# Terminal 2
+# DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres
+npm run dev
+```
 
 ### Build produksi
 
@@ -153,7 +172,33 @@ npm start
 | --- | --- |
 | `NEXT_PUBLIC_APP_URL` | URL aplikasi, default `http://localhost:3005` |
 | `SESSION_SECRET` | Kunci penandatanganan sesi, minimal 32 karakter di produksi |
-| `DATABASE_PATH` | Lokasi berkas SQLite, default `./data/relasy.db` |
+| `DATABASE_URL` | Connection string PostgreSQL. Wajib di produksi |
+| `RELASY_SKIP_SCHEMA_INIT` | Set `1` untuk mematikan pembuatan skema otomatis bila tabel sudah dibuat manual |
+
+Panduan lengkap Supabase dan Vercel ada di
+[`docs/deploy-vercel-supabase.md`](docs/deploy-vercel-supabase.md).
+
+---
+
+## Deploy ke Vercel
+
+Relasy berjalan di Vercel dengan database PostgreSQL dari Supabase, keduanya
+tersedia gratis.
+
+1. Buat project di [Supabase](https://supabase.com), lalu buka **SQL Editor**
+   dan jalankan isi [`supabase/schema.sql`](supabase/schema.sql).
+2. Ambil connection string dari **Project Settings > Database > Transaction
+   pooler** (port `6543`). Jangan pakai host *Direct connection*, karena host
+   itu hanya mendukung IPv6 dan tidak bisa dijangkau dari Vercel.
+3. Impor repo ini di [vercel.com/new](https://vercel.com/new), lalu isi
+   `DATABASE_URL` dan `SESSION_SECRET` pada Environment Variables.
+4. Klik **Deploy**.
+
+Langkah lengkap beserta cara mengatasi masalah umum ada di
+[`docs/deploy-vercel-supabase.md`](docs/deploy-vercel-supabase.md).
+
+Ingin membawa data lama? Jalankan `npm run db:seed` untuk menghasilkan
+`supabase/seed.sql` dari folder `backup/`, lalu tempel isinya ke SQL Editor.
 
 ---
 
@@ -172,9 +217,11 @@ Ganti kredensial ini sebelum menempatkan aplikasi di lingkungan yang dapat diaks
 ## Pengujian
 
 ```bash
-npm test          # Vitest: unit dan integrasi
+npm test          # Vitest: unit dan integrasi (PostgreSQL in-process)
 npm run test:e2e  # Playwright: desktop Chromium dan mobile Chrome
 npx tsc --noEmit  # Pemeriksaan tipe
+npm run db:verify # Validasi supabase/schema.sql terhadap PostgreSQL
+npm run smoke     # Uji HTTP menyeluruh (butuh server berjalan)
 ```
 
 Suite end-to-end mencakup alur pelanggan, pipeline, follow-up, dashboard, impor dan ekspor CSV, navigasi, mode gelap, serta pemeriksaan aksesibilitas termasuk larangan overflow horizontal dan target sentuh minimal 44 piksel.
@@ -200,8 +247,10 @@ src/
     ui/             # Button, Input, Select, Dialog, Card, Badge, dan mark ikon kustom
   lib/
     auth/           # Sesi HMAC dan hashing kata sandi
-    db/             # Koneksi SQLite, skema, dan repository
+    db/             # Koneksi PostgreSQL, skema, dan repository
 tests-e2e/          # Pengujian browser Playwright
+supabase/           # schema.sql dan seed.sql siap tempel ke SQL Editor
+scripts/            # Alat bantu: generate skema, ekspor seed, smoke test
 docs/               # Dokumen produk, desain, dan panduan gaya
 ```
 
@@ -235,7 +284,7 @@ Jika Anda ingin **menjalankan, mengubah, mengganti merek, dan memasang Relasy un
 
 - Hak pakai penuh atas source code, termasuk untuk pekerjaan berbayar dan proyek klien.
 - Versi lengkap beserta riwayat pengembangan dan pembaruan.
-- Skema database SQLite, lapisan repository, dan seluruh komponen UI termasuk set ikon kustom.
+- Skema database PostgreSQL, lapisan repository, dan seluruh komponen UI termasuk set ikon kustom.
 - Suite pengujian Vitest dan Playwright sebagai jaring pengaman saat Anda mengubah kode.
 - Dokumen produk, desain, dan panduan gaya bahasa.
 - Pendampingan penyesuaian awal dan bantuan pemasangan.
@@ -253,6 +302,6 @@ Jika Anda ingin **menjalankan, mengubah, mengganti merek, dan memasang Relasy un
 ---
 
 <p align="center">
-  <strong>Relasy</strong> dibangun dengan Next.js, React, dan SQLite.<br />
+  <strong>Relasy</strong> dibangun dengan Next.js, React, dan PostgreSQL.<br />
   Jika proyek ini membantu Anda memahami cara membangun CRM yang rapi, pertimbangkan lisensi komersialnya.
 </p>

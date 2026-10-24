@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const opp = getOpportunityById(workspaceId, id);
+    const opp = await getOpportunityById(workspaceId, id);
     if (!opp) {
       return NextResponse.json({ message: "Peluang tidak ditemukan." }, { status: 404 });
     }
@@ -59,7 +59,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       if (!validStage) {
         return NextResponse.json({ message: "Tahapan peluang tidak valid." }, { status: 400 });
       }
-      const updated = updateOpportunityStage(workspaceId, id, body.stage);
+      const updated = await updateOpportunityStage(workspaceId, id, body.stage);
       if (!updated) {
         return NextResponse.json({ message: "Peluang tidak ditemukan." }, { status: 404 });
       }
@@ -74,7 +74,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
-    const updated = updateOpportunity(workspaceId, id, parsed.data);
+    const updated = await updateOpportunity(workspaceId, id, parsed.data);
     if (!updated) {
       return NextResponse.json({ message: "Peluang tidak ditemukan." }, { status: 404 });
     }
@@ -93,7 +93,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const deleted = deleteOpportunity(workspaceId, id);
+    const deleted = await deleteOpportunity(workspaceId, id);
     if (!deleted) {
       return NextResponse.json({ message: "Peluang tidak ditemukan." }, { status: 404 });
     }

@@ -1,4 +1,4 @@
-import { getDatabase } from "../client";
+import { getDriver } from "../client";
 import crypto from "crypto";
 
 export interface WorkspaceRecord {
@@ -9,38 +9,44 @@ export interface WorkspaceRecord {
   updated_at: string;
 }
 
-export function createWorkspace(name: string, ownerId?: string): WorkspaceRecord {
-  const db = getDatabase();
+export async function createWorkspace(name: string, ownerId?: string): Promise<WorkspaceRecord> {
+  const db = getDriver();
   const id = `ws_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
+  const owner = ownerId || null;
 
-  const stmt = db.prepare(`
-    INSERT INTO workspaces (id, name, owner_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-  stmt.run(id, name, ownerId || null, now, now);
+  await db.query(
+    `INSERT INTO workspaces (id, name, owner_id, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [id, name, owner, now, now]
+  );
 
   return {
     id,
     name,
-    owner_id: ownerId || null,
+    owner_id: owner,
     created_at: now,
     updated_at: now,
   };
 }
 
-export function getWorkspaceById(id: string): WorkspaceRecord | null {
-  const db = getDatabase();
-  const row = (db.prepare("SELECT * FROM workspaces WHERE id = ?").get(id) as unknown) as
-    | WorkspaceRecord
-    | undefined;
-  return row || null;
+export async function getWorkspaceById(id: string): Promise<WorkspaceRecord | null> {
+  const db = getDriver();
+  const rows = await db.query<WorkspaceRecord>("SELECT * FROM workspaces WHERE id = $1", [id]);
+  return rows[0] || null;
 }
 
-export function updateWorkspaceName(id: string, name: string): boolean {
-  const db = getDatabase();
+export async function updateWorkspaceName(id: string, name: string): Promise<boolean> {
+  const db = getDriver();
   const now = new Date().toISOString();
-  const stmt = db.prepare("UPDATE workspaces SET name = ?, updated_at = ? WHERE id = ?");
-  const result = stmt.run(name, now, id) as any;
-  return (result?.changes || 0) > 0;
+  const affected = await db.execute(
+    "UPDATE workspaces SET name = $1, updated_at = $2 WHERE id = $3",
+    [name, now, id]
+  );
+  return affected > 0;
+}
+
+export async function setWorkspaceOwner(workspaceId: string, ownerId: string): Promise<void> {
+  const db = getDriver();
+  await db.execute("UPDATE workspaces SET owner_id = $1 WHERE id = $2", [ownerId, workspaceId]);
 }

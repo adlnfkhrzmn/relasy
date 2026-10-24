@@ -1,4 +1,4 @@
-import { getDatabase } from "../client";
+import { getDriver } from "../client";
 import { PipelineStage } from "@/lib/constants";
 import crypto from "crypto";
 
@@ -31,122 +31,113 @@ export interface UpdateOpportunityInput {
   expectedCloseDate?: string | null;
 }
 
-export function createOpportunity(
+export async function createOpportunity(
   workspaceId: string,
   input: CreateOpportunityInput
-): OpportunityRecord {
-  const db = getDatabase();
+): Promise<OpportunityRecord> {
+  const db = getDriver();
   const id = `opp_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
   const stage = input.stage || "baru";
   const estimatedValue = Math.max(0, Math.round(input.estimatedValue || 0));
+  const title = input.title.trim();
+  const expectedCloseDate = input.expectedCloseDate || null;
 
-  const stmt = db.prepare(`
-    INSERT INTO opportunities (
-      id, workspace_id, customer_id, title, stage, estimated_value, expected_close_date, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
-    id,
-    workspaceId,
-    input.customerId,
-    input.title.trim(),
-    stage,
-    estimatedValue,
-    input.expectedCloseDate || null,
-    now,
-    now
+  await db.query(
+    `INSERT INTO opportunities (
+       id, workspace_id, customer_id, title, stage, estimated_value, expected_close_date, created_at, updated_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [id, workspaceId, input.customerId, title, stage, estimatedValue, expectedCloseDate, now, now]
   );
 
   return {
     id,
     workspace_id: workspaceId,
     customer_id: input.customerId,
-    title: input.title.trim(),
+    title,
     stage,
     estimated_value: estimatedValue,
-    expected_close_date: input.expectedCloseDate || null,
+    expected_close_date: expectedCloseDate,
     created_at: now,
     updated_at: now,
     outcome_at: null,
   };
 }
 
-export function getOpportunities(
+export async function getOpportunities(
   workspaceId: string,
   options: {
     customerId?: string;
     stage?: PipelineStage;
   } = {}
-): OpportunityRecord[] {
-  const db = getDatabase();
+): Promise<OpportunityRecord[]> {
+  const db = getDriver();
   let query = `
     SELECT o.*, c.name as customer_name
     FROM opportunities o
     JOIN customers c ON o.customer_id = c.id
-    WHERE o.workspace_id = ?
+    WHERE o.workspace_id = $1
   `;
   const params: any[] = [workspaceId];
 
   if (options.customerId) {
-    query += " AND o.customer_id = ?";
     params.push(options.customerId);
+    query += ` AND o.customer_id = $${params.length}`;
   }
 
   if (options.stage) {
-    query += " AND o.stage = ?";
     params.push(options.stage);
+    query += ` AND o.stage = $${params.length}`;
   }
 
   query += " ORDER BY o.updated_at DESC";
 
-  return (db.prepare(query).all(...params) as unknown) as OpportunityRecord[];
+  return db.query<OpportunityRecord>(query, params);
 }
 
-export function getOpportunityById(
+export async function getOpportunityById(
   workspaceId: string,
   opportunityId: string
-): OpportunityRecord | null {
-  const db = getDatabase();
-  const row = (db
-    .prepare(`
-      SELECT o.*, c.name as customer_name
-      FROM opportunities o
-      JOIN customers c ON o.customer_id = c.id
-      WHERE o.id = ? AND o.workspace_id = ?
-    `)
-    .get(opportunityId, workspaceId) as unknown) as OpportunityRecord | undefined;
-  return row || null;
+): Promise<OpportunityRecord | null> {
+  const db = getDriver();
+  const rows = await db.query<OpportunityRecord>(
+    `
+    SELECT o.*, c.name as customer_name
+    FROM opportunities o
+    JOIN customers c ON o.customer_id = c.id
+    WHERE o.id = $1 AND o.workspace_id = $2
+  `,
+    [opportunityId, workspaceId]
+  );
+  return rows[0] || null;
 }
 
-export function updateOpportunityStage(
+export async function updateOpportunityStage(
   workspaceId: string,
   opportunityId: string,
   newStage: PipelineStage
-): boolean {
-  const db = getDatabase();
+): Promise<boolean> {
+  const db = getDriver();
   const now = new Date().toISOString();
   const isFinalOutcome = newStage === "berhasil" || newStage === "tidak_berhasil";
   const outcomeAt = isFinalOutcome ? now : null;
 
-  const stmt = db.prepare(`
-    UPDATE opportunities
-    SET stage = ?, outcome_at = ?, updated_at = ?
-    WHERE id = ? AND workspace_id = ?
-  `);
-
-  const res = stmt.run(newStage, outcomeAt, now, opportunityId, workspaceId) as any;
-  return (res?.changes || 0) > 0;
+  const affected = await db.execute(
+    `UPDATE opportunities
+     SET stage = $1, outcome_at = $2, updated_at = $3
+     WHERE id = $4 AND workspace_id = $5`,
+    [newStage, outcomeAt, now, opportunityId, workspaceId]
+  );
+  return affected > 0;
 }
 
-export function updateOpportunity(
+export async function updateOpportunity(
   workspaceId: string,
   opportunityId: string,
   input: UpdateOpportunityInput
-): OpportunityRecord | null {
-  const db = getDatabase();
-  const existing = getOpportunityById(workspaceId, opportunityId);
+): Promise<OpportunityRecord | null> {
+  const db = getDriver();
+  const existing = await getOpportunityById(workspaceId, opportunityId);
   if (!existing) return null;
 
   const now = new Date().toISOString();
@@ -162,19 +153,24 @@ export function updateOpportunity(
   const isFinalOutcome = stage === "berhasil" || stage === "tidak_berhasil";
   const outcomeAt = isFinalOutcome ? existing.outcome_at || now : null;
 
-  const stmt = db.prepare(`
-    UPDATE opportunities
-    SET title = ?, stage = ?, estimated_value = ?, expected_close_date = ?, outcome_at = ?, updated_at = ?
-    WHERE id = ? AND workspace_id = ?
-  `);
+  await db.execute(
+    `UPDATE opportunities
+     SET title = $1, stage = $2, estimated_value = $3, expected_close_date = $4, outcome_at = $5, updated_at = $6
+     WHERE id = $7 AND workspace_id = $8`,
+    [title, stage, estimatedValue, expectedCloseDate, outcomeAt, now, opportunityId, workspaceId]
+  );
 
-  stmt.run(title, stage, estimatedValue, expectedCloseDate, outcomeAt, now, opportunityId, workspaceId);
   return getOpportunityById(workspaceId, opportunityId);
 }
 
-export function deleteOpportunity(workspaceId: string, opportunityId: string): boolean {
-  const db = getDatabase();
-  const stmt = db.prepare("DELETE FROM opportunities WHERE id = ? AND workspace_id = ?");
-  const res = stmt.run(opportunityId, workspaceId) as any;
-  return (res?.changes || 0) > 0;
+export async function deleteOpportunity(
+  workspaceId: string,
+  opportunityId: string
+): Promise<boolean> {
+  const db = getDriver();
+  const affected = await db.execute(
+    "DELETE FROM opportunities WHERE id = $1 AND workspace_id = $2",
+    [opportunityId, workspaceId]
+  );
+  return affected > 0;
 }

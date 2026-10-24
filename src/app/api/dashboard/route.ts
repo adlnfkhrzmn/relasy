@@ -15,16 +15,18 @@ export async function GET(request: Request) {
     const referenceDate = searchParams.get("refDate") || undefined;
 
     // 1. Fetch aggregate metrics
-    const metrics = getDashboardMetrics(workspaceId, referenceDate);
+    const metrics = await getDashboardMetrics(workspaceId, referenceDate);
 
     // 2. Fetch today's pending follow-ups (up to 5 items)
-    const todayFollowups = getFollowups(workspaceId, {
-      tab: "today",
-      referenceDate,
-    }).slice(0, 5);
+    const todayFollowups = (
+      await getFollowups(workspaceId, {
+        tab: "today",
+        referenceDate,
+      })
+    ).slice(0, 5);
 
     // 3. Fetch recent customer activities (up to 5 items)
-    const recentActivities = getActivities(workspaceId, { limit: 5 });
+    const recentActivities = await getActivities(workspaceId, { limit: 5 });
 
     return NextResponse.json({
       success: true,

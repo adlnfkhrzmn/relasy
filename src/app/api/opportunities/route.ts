@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     const customerId = searchParams.get("customerId") || undefined;
     const stage = (searchParams.get("stage") as PipelineStage) || undefined;
 
-    const opportunities = getOpportunities(workspaceId, { customerId, stage });
+    const opportunities = await getOpportunities(workspaceId, { customerId, stage });
     return NextResponse.json({ success: true, data: opportunities });
   } catch (error) {
     console.error("GET /api/opportunities error:", error);
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     }
 
     // Verify customer belongs to this workspace
-    const customer = getCustomerById(workspaceId, parsed.data.customerId);
+    const customer = await getCustomerById(workspaceId, parsed.data.customerId);
     if (!customer) {
       return NextResponse.json(
         { message: "Pelanggan yang dipilih tidak valid atau tidak ditemukan." },
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const opportunity = createOpportunity(workspaceId, {
+    const opportunity = await createOpportunity(workspaceId, {
       customerId: parsed.data.customerId,
       title: parsed.data.title,
       stage: parsed.data.stage || "baru",

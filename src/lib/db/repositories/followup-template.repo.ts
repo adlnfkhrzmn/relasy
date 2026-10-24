@@ -1,4 +1,4 @@
-import { getDatabase } from "../client";
+import { getDriver, ensureSchema } from "../client";
 import { DEFAULT_FOLLOWUP_TEMPLATE, FOLLOWUP_TEMPLATE_PRESETS } from "@/lib/followup-template";
 
 export interface FollowupTemplateConfig {
@@ -9,33 +9,34 @@ export interface FollowupTemplateConfig {
   updated_at: string;
 }
 
-function ensureTableExists() {
-  const db = getDatabase();
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS followup_templates (
-      workspace_id TEXT PRIMARY KEY,
-      is_enabled INTEGER NOT NULL DEFAULT 1,
-      active_preset TEXT NOT NULL DEFAULT 'eksekutif_ramah',
-      template_text TEXT NOT NULL,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
-    );
-  `);
+interface FollowupTemplateRow {
+  workspace_id: string;
+  is_enabled: boolean;
+  active_preset: string;
+  template_text: string;
+  updated_at: string;
 }
 
-export function getFollowupTemplateConfig(workspaceId: string): FollowupTemplateConfig {
-  ensureTableExists();
-  const db = getDatabase();
-  const row = db
-    .prepare("SELECT * FROM followup_templates WHERE workspace_id = ?")
-    .get(workspaceId) as any;
+export async function getFollowupTemplateConfig(
+  workspaceId: string
+): Promise<FollowupTemplateConfig> {
+  await ensureSchema();
+  const db = getDriver();
+
+  const rows = await db.query<FollowupTemplateRow>(
+    "SELECT * FROM followup_templates WHERE workspace_id = $1",
+    [workspaceId]
+  );
+  const row = rows[0];
 
   if (!row) {
     const now = new Date().toISOString();
-    db.prepare(
+    await db.query(
       `INSERT INTO followup_templates (workspace_id, is_enabled, active_preset, template_text, updated_at)
-       VALUES (?, 1, 'eksekutif_ramah', ?, ?)`
-    ).run(workspaceId, DEFAULT_FOLLOWUP_TEMPLATE, now);
+       VALUES ($1, TRUE, 'eksekutif_ramah', $2, $3)
+       ON CONFLICT (workspace_id) DO NOTHING`,
+      [workspaceId, DEFAULT_FOLLOWUP_TEMPLATE, now]
+    );
 
     return {
       workspace_id: workspaceId,
@@ -55,16 +56,16 @@ export function getFollowupTemplateConfig(workspaceId: string): FollowupTemplate
   };
 }
 
-export function updateFollowupTemplateConfig(
+export async function updateFollowupTemplateConfig(
   workspaceId: string,
   input: {
     isEnabled?: boolean;
     activePreset?: string;
     templateText?: string;
   }
-): FollowupTemplateConfig {
-  const current = getFollowupTemplateConfig(workspaceId);
-  const db = getDatabase();
+): Promise<FollowupTemplateConfig> {
+  const current = await getFollowupTemplateConfig(workspaceId);
+  const db = getDriver();
   const now = new Date().toISOString();
 
   const isEnabled = input.isEnabled !== undefined ? input.isEnabled : current.is_enabled;
@@ -78,11 +79,12 @@ export function updateFollowupTemplateConfig(
     templateText = matchedPreset ? matchedPreset.template : DEFAULT_FOLLOWUP_TEMPLATE;
   }
 
-  db.prepare(
+  await db.execute(
     `UPDATE followup_templates
-     SET is_enabled = ?, active_preset = ?, template_text = ?, updated_at = ?
-     WHERE workspace_id = ?`
-  ).run(isEnabled ? 1 : 0, activePreset, templateText, now, workspaceId);
+     SET is_enabled = $1, active_preset = $2, template_text = $3, updated_at = $4
+     WHERE workspace_id = $5`,
+    [isEnabled, activePreset, templateText, now, workspaceId]
+  );
 
   return getFollowupTemplateConfig(workspaceId);
 }

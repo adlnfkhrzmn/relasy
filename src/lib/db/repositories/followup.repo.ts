@@ -1,4 +1,4 @@
-import { getDatabase } from "../client";
+import { getDriver } from "../client";
 import { FollowupStatus } from "@/lib/constants";
 import crypto from "crypto";
 
@@ -35,36 +35,32 @@ export interface UpdateFollowupInput {
   status?: FollowupStatus;
 }
 
-export function createFollowup(workspaceId: string, input: CreateFollowupInput): FollowupRecord {
-  const db = getDatabase();
+export async function createFollowup(
+  workspaceId: string,
+  input: CreateFollowupInput
+): Promise<FollowupRecord> {
+  const db = getDriver();
   const id = `flw_${crypto.randomUUID()}`;
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    INSERT INTO followups (
-      id, workspace_id, customer_id, opportunity_id, title, note, due_at, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
-  `);
+  const title = input.title.trim();
+  const note = input.note ? input.note.trim() : null;
+  const opportunityId = input.opportunityId || null;
 
-  stmt.run(
-    id,
-    workspaceId,
-    input.customerId,
-    input.opportunityId || null,
-    input.title.trim(),
-    input.note ? input.note.trim() : null,
-    input.dueAt,
-    now,
-    now
+  await db.query(
+    `INSERT INTO followups (
+       id, workspace_id, customer_id, opportunity_id, title, note, due_at, status, created_at, updated_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9)`,
+    [id, workspaceId, input.customerId, opportunityId, title, note, input.dueAt, now, now]
   );
 
   return {
     id,
     workspace_id: workspaceId,
     customer_id: input.customerId,
-    opportunity_id: input.opportunityId || null,
-    title: input.title.trim(),
-    note: input.note ? input.note.trim() : null,
+    opportunity_id: opportunityId,
+    title,
+    note,
     due_at: input.dueAt,
     status: "pending",
     completed_at: null,
@@ -73,19 +69,19 @@ export function createFollowup(workspaceId: string, input: CreateFollowupInput):
   };
 }
 
-export function getFollowups(
+export async function getFollowups(
   workspaceId: string,
   options: {
     tab?: "today" | "upcoming" | "overdue" | "completed";
     customerId?: string;
     referenceDate?: string; // YYYY-MM-DD in client local time
   } = {}
-): FollowupRecord[] {
-  const db = getDatabase();
+): Promise<FollowupRecord[]> {
+  const db = getDriver();
   const todayStr = options.referenceDate || new Date().toISOString().split("T")[0];
 
   let query = `
-    SELECT 
+    SELECT
       f.*,
       c.name as customer_name,
       c.phone as customer_phone,
@@ -94,24 +90,24 @@ export function getFollowups(
     FROM followups f
     JOIN customers c ON f.customer_id = c.id
     LEFT JOIN opportunities o ON f.opportunity_id = o.id
-    WHERE f.workspace_id = ?
+    WHERE f.workspace_id = $1
   `;
   const params: any[] = [workspaceId];
 
   if (options.customerId) {
-    query += " AND f.customer_id = ?";
     params.push(options.customerId);
+    query += ` AND f.customer_id = $${params.length}`;
   }
 
   if (options.tab === "today") {
-    query += " AND f.status = 'pending' AND substr(f.due_at, 1, 10) = ?";
     params.push(todayStr);
+    query += ` AND f.status = 'pending' AND substr(f.due_at, 1, 10) = $${params.length}`;
   } else if (options.tab === "upcoming") {
-    query += " AND f.status = 'pending' AND substr(f.due_at, 1, 10) > ?";
     params.push(todayStr);
+    query += ` AND f.status = 'pending' AND substr(f.due_at, 1, 10) > $${params.length}`;
   } else if (options.tab === "overdue") {
-    query += " AND f.status = 'pending' AND substr(f.due_at, 1, 10) < ?";
     params.push(todayStr);
+    query += ` AND f.status = 'pending' AND substr(f.due_at, 1, 10) < $${params.length}`;
   } else if (options.tab === "completed") {
     query += " AND f.status = 'completed'";
   }
@@ -123,72 +119,74 @@ export function getFollowups(
     query += " ORDER BY f.due_at ASC, f.created_at DESC";
   }
 
-  return (db.prepare(query).all(...params) as unknown) as FollowupRecord[];
+  return db.query<FollowupRecord>(query, params);
 }
 
-export function getFollowupById(workspaceId: string, followupId: string): FollowupRecord | null {
-  const db = getDatabase();
-  const row = (db
-    .prepare(`
-      SELECT 
-        f.*,
-        c.name as customer_name,
-        c.phone as customer_phone,
-        c.company as customer_company,
-        o.title as opportunity_title
-      FROM followups f
-      JOIN customers c ON f.customer_id = c.id
-      LEFT JOIN opportunities o ON f.opportunity_id = o.id
-      WHERE f.id = ? AND f.workspace_id = ?
-    `)
-    .get(followupId, workspaceId) as unknown) as FollowupRecord | undefined;
-  return row || null;
+export async function getFollowupById(
+  workspaceId: string,
+  followupId: string
+): Promise<FollowupRecord | null> {
+  const db = getDriver();
+  const rows = await db.query<FollowupRecord>(
+    `
+    SELECT
+      f.*,
+      c.name as customer_name,
+      c.phone as customer_phone,
+      c.company as customer_company,
+      o.title as opportunity_title
+    FROM followups f
+    JOIN customers c ON f.customer_id = c.id
+    LEFT JOIN opportunities o ON f.opportunity_id = o.id
+    WHERE f.id = $1 AND f.workspace_id = $2
+  `,
+    [followupId, workspaceId]
+  );
+  return rows[0] || null;
 }
 
-export function updateFollowupStatus(
+export async function updateFollowupStatus(
   workspaceId: string,
   followupId: string,
   newStatus: FollowupStatus
-): boolean {
-  const db = getDatabase();
+): Promise<boolean> {
+  const db = getDriver();
   const now = new Date().toISOString();
   const completedAt = newStatus === "completed" ? now : null;
 
-  const stmt = db.prepare(`
-    UPDATE followups
-    SET status = ?, completed_at = ?, updated_at = ?
-    WHERE id = ? AND workspace_id = ?
-  `);
-
-  const res = stmt.run(newStatus, completedAt, now, followupId, workspaceId) as any;
-  return (res?.changes || 0) > 0;
+  const affected = await db.execute(
+    `UPDATE followups
+     SET status = $1, completed_at = $2, updated_at = $3
+     WHERE id = $4 AND workspace_id = $5`,
+    [newStatus, completedAt, now, followupId, workspaceId]
+  );
+  return affected > 0;
 }
 
-export function rescheduleFollowup(
+export async function rescheduleFollowup(
   workspaceId: string,
   followupId: string,
   newDueAt: string
-): boolean {
-  const db = getDatabase();
+): Promise<boolean> {
+  const db = getDriver();
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    UPDATE followups
-    SET due_at = ?, status = 'pending', completed_at = NULL, updated_at = ?
-    WHERE id = ? AND workspace_id = ?
-  `);
-
-  const res = stmt.run(newDueAt, now, followupId, workspaceId) as any;
-  return (res?.changes || 0) > 0;
+  const affected = await db.execute(
+    `UPDATE followups
+     SET due_at = $1, status = 'pending', completed_at = NULL, updated_at = $2
+     WHERE id = $3 AND workspace_id = $4`,
+    [newDueAt, now, followupId, workspaceId]
+  );
+  return affected > 0;
 }
 
-export function updateFollowup(
+export async function updateFollowup(
   workspaceId: string,
   followupId: string,
   input: UpdateFollowupInput
-): FollowupRecord | null {
-  const db = getDatabase();
-  const existing = getFollowupById(workspaceId, followupId);
+): Promise<FollowupRecord | null> {
+  const db = getDriver();
+  const existing = await getFollowupById(workspaceId, followupId);
   if (!existing) return null;
 
   const now = new Date().toISOString();
@@ -196,22 +194,23 @@ export function updateFollowup(
   const note = input.note !== undefined ? (input.note ? input.note.trim() : null) : existing.note;
   const dueAt = input.dueAt !== undefined ? input.dueAt : existing.due_at;
   const status = input.status !== undefined ? input.status : existing.status;
-  const completedAt =
-    status === "completed" ? existing.completed_at || now : null;
+  const completedAt = status === "completed" ? existing.completed_at || now : null;
 
-  const stmt = db.prepare(`
-    UPDATE followups
-    SET title = ?, note = ?, due_at = ?, status = ?, completed_at = ?, updated_at = ?
-    WHERE id = ? AND workspace_id = ?
-  `);
+  await db.execute(
+    `UPDATE followups
+     SET title = $1, note = $2, due_at = $3, status = $4, completed_at = $5, updated_at = $6
+     WHERE id = $7 AND workspace_id = $8`,
+    [title, note, dueAt, status, completedAt, now, followupId, workspaceId]
+  );
 
-  stmt.run(title, note, dueAt, status, completedAt, now, followupId, workspaceId);
   return getFollowupById(workspaceId, followupId);
 }
 
-export function deleteFollowup(workspaceId: string, followupId: string): boolean {
-  const db = getDatabase();
-  const stmt = db.prepare("DELETE FROM followups WHERE id = ? AND workspace_id = ?");
-  const res = stmt.run(followupId, workspaceId) as any;
-  return (res?.changes || 0) > 0;
+export async function deleteFollowup(workspaceId: string, followupId: string): Promise<boolean> {
+  const db = getDriver();
+  const affected = await db.execute(
+    "DELETE FROM followups WHERE id = $1 AND workspace_id = $2",
+    [followupId, workspaceId]
+  );
+  return affected > 0;
 }

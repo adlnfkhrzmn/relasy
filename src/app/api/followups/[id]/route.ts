@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const task = getFollowupById(workspaceId, id);
+    const task = await getFollowupById(workspaceId, id);
     if (!task) {
       return NextResponse.json({ message: "Tugas tidak ditemukan." }, { status: 404 });
     }
@@ -74,13 +74,13 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     if (body.action === "toggle_status" || Object.keys(body).length === 0) {
-      const existing = getFollowupById(workspaceId, id);
+      const existing = await getFollowupById(workspaceId, id);
       if (!existing) {
         return NextResponse.json({ message: "Tugas tidak ditemukan." }, { status: 404 });
       }
       const newStatus = existing.status === "completed" ? "pending" : "completed";
-      updateFollowupStatus(workspaceId, id, newStatus);
-      const refreshed = getFollowupById(workspaceId, id);
+      await updateFollowupStatus(workspaceId, id, newStatus);
+      const refreshed = await getFollowupById(workspaceId, id);
       return NextResponse.json({
         success: true,
         status: newStatus,
@@ -89,11 +89,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     if (body.action === "reschedule" && body.dueAt) {
-      const updated = rescheduleFollowup(workspaceId, id, body.dueAt);
+      const updated = await rescheduleFollowup(workspaceId, id, body.dueAt);
       if (!updated) {
         return NextResponse.json({ message: "Tugas tidak ditemukan." }, { status: 404 });
       }
-      const refreshed = getFollowupById(workspaceId, id);
+      const refreshed = await getFollowupById(workspaceId, id);
       return NextResponse.json({
         success: true,
         message: "Jadwal berhasil diperbarui.",
@@ -109,7 +109,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
-    const updated = updateFollowup(workspaceId, id, parsed.data);
+    const updated = await updateFollowup(workspaceId, id, parsed.data);
     if (!updated) {
       return NextResponse.json({ message: "Tugas tidak ditemukan." }, { status: 404 });
     }
@@ -128,7 +128,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     const session = await getCurrentSession();
     const workspaceId = session?.workspaceId || defaultAcc.workspaceId;
 
-    const deleted = deleteFollowup(workspaceId, id);
+    const deleted = await deleteFollowup(workspaceId, id);
     if (!deleted) {
       return NextResponse.json({ message: "Tugas tidak ditemukan." }, { status: 404 });
     }

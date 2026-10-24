@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     const { email, password } = parsed.data;
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
 
     if (!user) {
       return NextResponse.json(
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const workspace = getWorkspaceById(user.workspace_id);
+    const workspace = await getWorkspaceById(user.workspace_id);
     const workspaceName = workspace?.name || "Usaha Saya";
 
     const token = createSessionToken({
